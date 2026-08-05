@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: roblox-checker
+    env: docker
+    region: frankfurt
+    plan: free
+    buildCommand: ""
+    startType: instance
+    instanceCount: 1
