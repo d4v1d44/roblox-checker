@@ -141,7 +141,8 @@ app.post('/start-brute-force', async (req, res) => {
     const { email } = req.body;
 
     if (!email || !email.includes('@')) {
-        return res.json({ success: false, error: "Email inválido" };
+        return res.json({ success: false, error: "Email inválido" });
+
     }
 
     // Iniciar o ataque em "background"
