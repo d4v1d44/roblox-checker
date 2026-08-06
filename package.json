@@ -1,12 +1,14 @@
 {
-  "name": "roblox-gmail-bruteforce",
+  "name": "roblox-email-brute-force",
   "version": "1.0.0",
+  "description": "Roblox Email Brute Force Bot",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "axios": "^1.6.0"
+    "axios": "^1.6.0",
+    "discord.js": "^14.14.0"
   }
 }
