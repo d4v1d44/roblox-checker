@@ -1,14 +1,14 @@
 {
-  "name": "roblox-email-brute-force",
+  "name": "roblox-checker",
   "version": "1.0.0",
-  "description": "Roblox Email Brute Force Bot",
+  "description": "Roblox Brute Forcer",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "axios": "^1.6.0",
-    "discord.js": "^14.14.0"
+    "axios": "^1.6.2",
+    "roblox.js": "^1.5.0"
   }
 }
