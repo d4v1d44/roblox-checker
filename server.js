@@ -11,9 +11,6 @@ const port = process.env.PORT || 3000;
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const CHANNEL_ID = process.env.CHANNEL_ID;
 
-// ATENÇÃO: Coloca aqui o ID do CANAL onde o bot vai escrever
-// Exemplo: "1534955637593866271" (Clica no canal no Discord > Copiar ID)
-const CHANNEL_ID = "1533498302845157608"; 
 
 // Inicializar o Bot
 const client = new Client({ intents: [GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
