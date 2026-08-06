@@ -7,7 +7,9 @@ const port = process.env.PORT || 3000;
 
 // --- CONFIGURAÇÕES DO BOT ---
 // O teu Token já está aqui
-const DISCORD_TOKEN = "MTUzNDk1NTYzNzU5Mzg2NjI3MA.GgZEm3.ba7HDvARqCAoMVMPx7h-o8bFrovrLLxXT1i4i8";
+// No server.js, substitua a linha do token por isto:
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+const CHANNEL_ID = process.env.CHANNEL_ID;
 
 // ATENÇÃO: Coloca aqui o ID do CANAL onde o bot vai escrever
 // Exemplo: "1534955637593866271" (Clica no canal no Discord > Copiar ID)
