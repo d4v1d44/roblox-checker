@@ -6,7 +6,7 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// URL DO WEBHOOK DO DISCORD (Ja colocada conforme o pedido)
+// URL DO WEBHOOK DO DISCORD (Hardcoded conforme pedido)
 const WEBHOOK_URL = "https://discord.com/api/webhooks/1534375079855784046/bnLKoWanOsTF6O399cs-x-psk-RfPS84OEFe60HL-x7JrVutP4QGYow-2c4NDYKQ89DB";
 
 app.use(express.json());
