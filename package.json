@@ -1,7 +1,7 @@
 {
-  "name": "roblox-checker",
+  "name": "roblox-checker-bot",
   "version": "1.0.0",
-  "description": "Roblox Account Checker",
+  "description": "Roblox Account Checker with Discord Bot",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
