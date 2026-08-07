@@ -4,7 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='.')
 
 # CONFIGURAÇÕES
 WEBHOOK_URL = "https://discord.com/api/webhooks/1534375079855784046/bnLKoWanOsTF6O399cs-x-psk-RfPS84OEFe60HL-x7JrVutP4QGYow-2c4NDYKQ89DB"
@@ -159,9 +159,9 @@ def handle_start_brute_force():
 
 @app.route('/')
 def index():
-    # Tenta ler o arquivo index.html da pasta atual
-    try:
-        with open('index.html', 'r') as f:
-            return f.read()
-    except FileNotFoundError:
-        return "Arquivo index.html não encontrado!"
+    # Serve o arquivo index.html da pasta raiz
+    return app.send_static_file('index.html')
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port)
