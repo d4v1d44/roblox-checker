@@ -1,9 +1,8 @@
 services:
   - type: web
     name: roblox-checker
-    env: docker
+    env: node
     region: frankfurt
     plan: free
-    buildCommand: ""
-    startType: instance
-    instanceCount: 1
+    buildCommand: "npm install"
+    startCommand: "npm start"
