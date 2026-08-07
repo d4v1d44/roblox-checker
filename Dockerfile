@@ -1,8 +1,14 @@
-# Usa uma imagem leve do PHP com o Apache
-FROM php:8.2-apache
+# Usa uma imagem Node.js
+FROM node:18-alpine
 
-# Copia todos os ficheiros da pasta para a pasta raiz do servidor
-COPY . /var/www/html/
+WORKDIR /app
 
-# Garante que o check.php está na raiz
-EXPOSE 80
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "start"]
+
