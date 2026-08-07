@@ -159,8 +159,9 @@ def handle_start_brute_force():
 
 @app.route('/')
 def index():
-    return "Roblox Brute Forcer (Python) está rodando!"
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port)
+    # Tenta ler o arquivo index.html da pasta atual
+    try:
+        with open('index.html', 'r') as f:
+            return f.read()
+    except FileNotFoundError:
+        return "Arquivo index.html não encontrado!"
